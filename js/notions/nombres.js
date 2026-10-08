@@ -463,4 +463,79 @@
       return Q(`dr:${from}:${major}:${v}`, `${fig}Quelle est l’abscisse du point A ?`, num(v), `Une petite graduation vaut ${fmt(major)} ÷ ${minor}.`, `Une graduation vaut ${fmt(major)} ÷ ${minor} = ${fmt(stepv)}. A a pour abscisse <b>${fmt(v)}</b>.`);
     },
   });
+
+  // ===================== GRANDS NOMBRES =====================
+  const UNITS = ['zéro', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix', 'onze', 'douze', 'treize', 'quatorze', 'quinze', 'seize'];
+  const TENS = { 20: 'vingt', 30: 'trente', 40: 'quarante', 50: 'cinquante', 60: 'soixante' };
+  // `final`: nothing follows except possibly million/milliard (then "quatre-vingts", "deux cents" take an s).
+  function below100(n, final = true) {
+    if (n <= 16) return UNITS[n];
+    if (n < 20) return 'dix-' + UNITS[n - 10];
+    if (n < 70) { const t = n - (n % 10), u = n % 10; return TENS[t] + (u === 0 ? '' : u === 1 ? ' et un' : '-' + UNITS[u]); }
+    if (n < 80) return n === 71 ? 'soixante et onze' : 'soixante-' + below100(n - 60);
+    return n === 80 ? (final ? 'quatre-vingts' : 'quatre-vingt') : 'quatre-vingt-' + below100(n - 80);
+  }
+  function below1000(n, final = true) {
+    const h = Math.floor(n / 100), r = n % 100;
+    const head = h === 0 ? '' : h === 1 ? 'cent' : `${UNITS[h]} cent${r === 0 && final ? 's' : ''}`;
+    return [head, r ? below100(r, final) : ''].filter(Boolean).join(' ');
+  }
+  // French words for 0 ≤ n < 10^12 (traditional spelling).
+  function words(n) {
+    if (n === 0) return 'zéro';
+    const g = [Math.floor(n / 1e9), Math.floor(n / 1e6) % 1000, Math.floor(n / 1e3) % 1000, n % 1000];
+    const parts = [];
+    if (g[0]) parts.push(g[0] === 1 ? 'un milliard' : `${below1000(g[0])} milliards`);
+    if (g[1]) parts.push(g[1] === 1 ? 'un million' : `${below1000(g[1])} millions`);
+    if (g[2]) parts.push(g[2] === 1 ? 'mille' : `${below1000(g[2], false)} mille`);
+    if (g[3]) parts.push(below1000(g[3]));
+    return parts.join(' ');
+  }
+  M.u.words = words;
+  // A big number with a few zero digits, so the place of each digit matters.
+  function bigNumber(rng, digits) {
+    let s = String(rng.int(1, 9));
+    for (let i = 1; i < digits; i++) s += rng.chance(0.3) ? '0' : String(rng.int(1, 9));
+    return Number(s);
+  }
+  const BIG_PLACES = ['unités', 'dizaines', 'centaines', 'unités de mille', 'dizaines de mille', 'centaines de mille', 'unités de millions', 'dizaines de millions', 'centaines de millions', 'unités de milliards'];
+
+  M.notion('grands-nombres', {
+    lesson: {
+      retenir: 'Pour lire un grand nombre, on sépare les chiffres en <b>classes de 3</b> en partant de la droite : la classe des <b>unités</b>, des <b>mille</b>, des <b>millions</b>, des <b>milliards</b>. 1 million = 1 000 000 (6 zéros) ; 1 milliard = 1 000 000 000 (9 zéros).',
+      explication: `${table([['milliards', 'millions', 'mille', 'unités'], ['2', '305', '040', '018']], { cls: 'place' })}<p>On lit chaque classe comme un nombre à 3 chiffres, suivi du nom de la classe : <b>deux milliards trois cent cinq millions quarante mille dix-huit</b>.</p>`,
+      methode: [
+        'Écris le nombre en laissant un espace tous les 3 chiffres, en partant de la droite.',
+        'Lis chaque groupe de 3 chiffres, puis le nom de sa classe (milliards, millions, mille).',
+        'Pour écrire en chiffres : remplis chaque classe avec 3 chiffres, en mettant des 0 dans les rangs vides.',
+      ],
+      exemples: [
+        { q: 'Écris en chiffres : trois millions deux cent mille quarante', r: '3 | 200 | 040 → <b>3 200 040</b>.' },
+        { q: 'Combien y a-t-il de milliers en tout dans 4 572 389 ?', r: 'On garde tout jusqu’aux unités de mille : <b>4 572</b> milliers.' },
+      ],
+      astuces: ['« Mille » ne prend jamais de s ; « million » et « milliard » en prennent un au pluriel.', '« Cent » et « vingt » prennent un s quand ils sont multipliés et terminent le nombre : deux cents, quatre-vingts (mais deux cent trois).'],
+      erreurs: ['Oublier les zéros d’une classe vide : « deux millions trente » s’écrit 2 000 030, pas 2 030.'],
+    },
+    generate(level, rng) {
+      if (level === 1) {
+        const n = bigNumber(rng, rng.int(5, 7));
+        return Q(`gn1:${n}`, `Écris en chiffres : <i>${words(n)}</i>`, num(n), 'Remplis chaque classe (millions, mille, unités) avec 3 chiffres.', `<b>${fmt(n)}</b>`);
+      }
+      if (level === 2) {
+        if (rng.chance(0.5)) {
+          const n = bigNumber(rng, rng.int(8, 10));
+          return Q(`gn2w:${n}`, `Écris en chiffres : <i>${words(n)}</i>`, num(n), 'Attention aux classes vides : elles s’écrivent 000.', `<b>${fmt(n)}</b>`);
+        }
+        const n = bigNumber(rng, 9), s = String(n), p = rng.int(3, 8), d = Number(s[s.length - 1 - p]);
+        return Q(`gn2p:${n}:${p}`, `Dans ${fmt(n)}, quel est le chiffre des <b>${BIG_PLACES[p]}</b> ?`, num(d), 'Sépare les classes : unités, mille, millions.', `Le chiffre des ${BIG_PLACES[p]} est <b>${d}</b>.`);
+      }
+      const n = bigNumber(rng, rng.int(7, 9));
+      if (rng.chance(0.5)) {
+        const [lab, div] = rng.pick([['milliers', 1e3], ['millions', 1e6], ['centaines', 100]]), r = Math.floor(n / div);
+        return Q(`gn3n:${n}:${div}`, `Combien y a-t-il de <b>${lab}</b> en tout dans ${fmt(n)} ?`, num(r), `Garde tous les chiffres jusqu’au rang des ${lab}.`, `Dans ${fmt(n)}, il y a <b>${fmt(r)}</b> ${lab}.`);
+      }
+      const [lab, unit] = rng.pick([['au million', 1e6], ['au millier', 1e3]]), r = Math.round(n / unit) * unit;
+      return Q(`gn3a:${n}:${unit}`, `Arrondi ${lab} près de ${fmt(n)} ?`, num(r), 'Regarde le chiffre juste à droite du rang demandé.', `L’arrondi ${lab} près est <b>${fmt(r)}</b>.`);
+    },
+  });
 })();

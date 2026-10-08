@@ -64,7 +64,7 @@
         if (v === null) return invalid('Écris un nombre, par exemple 12 ou 3,5.');
         return eq(v, a.value) ? ok : wrong;
       },
-      show: a => fmt(a.value) + (a.unit ? ` ${a.unit}` : ''),
+      show: a => fmt(a.value) + (a.unit ? (a.unit === '°' ? '°' : ` ${a.unit}`) : ''),   // French typography: 45°, but 45 %
       validate: a => (Number.isFinite(a.value) ? [] : ['value is not finite']),
     },
     fraction: {

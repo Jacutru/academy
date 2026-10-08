@@ -2,11 +2,12 @@
 (function () {
   'use strict';
   const M = globalThis.M;
-  const { fmt, dec, mul, div } = M.u;
+  const { fmt, dec, mul, div, add } = M.u;
   const { hole } = M.h;
   const { Q, num, choice, fixedChoice } = M.kit;
   const S = M.svg;
   const TF = b => fixedChoice(['Vrai', 'Faux'], b ? 'Vrai' : 'Faux');
+  const TF_YN = b => fixedChoice(['Oui', 'Non'], b ? 'Oui' : 'Non');
 
   // ===================== VOCABULAIRE =====================
   const KINDS = {
@@ -283,6 +284,122 @@
       const fig = S.grid({ cols, rows, axis, points: [{ x: A[0], y: A[1], label: 'A' }, ...pts.map((p, i) => ({ x: p[0], y: p[1], label: letters[i], cls: 's-dot' }))] });
       const good = letters[pts.indexOf(sym)];
       return Q(`sp:${axis}:${A}`, `${fig}Quel point est le symétrique de A par rapport à la droite rouge ?`, fixedChoice(letters, good), 'Même distance à l’axe, de l’autre côté, perpendiculairement à l’axe.', `Le symétrique de A est le point <b>${good}</b>.`);
+    },
+  });
+
+  // ===================== MÉDIATRICE =====================
+  const { svg: rawSvg, line: rawLine, text: rawText, dot: rawDot } = S.raw;
+  const mediatriceFig = (() => {
+    const A = [60, 130], B = [260, 130], I = [160, 130], Mp = [160, 40];
+    let b = rawLine(...A, ...B, 's-line s-thick') + rawLine(160, 15, 160, 175, 's-axis');
+    b += rawLine(...A, ...Mp, 's-accent-line s-dash') + rawLine(...B, ...Mp, 's-accent-line s-dash');
+    b += '<polyline points="160,118 172,118 172,130" class="s-line s-nofill"/>';
+    b += rawLine(105, 125, 115, 135) + rawLine(205, 125, 215, 135);   // equal halves
+    b += [A, B, I, Mp].map(p => rawDot(...p)).join('');
+    b += rawText(A[0] - 12, A[1] + 5, 'A', { cls: 's-text s-bold' }) + rawText(B[0] + 12, B[1] + 5, 'B', { cls: 's-text s-bold' });
+    b += rawText(I[0] + 10, I[1] + 22, 'I', { cls: 's-text s-bold' }) + rawText(Mp[0] + 14, Mp[1], 'M', { cls: 's-text s-bold' });
+    return rawSvg(320, 190, b);
+  })();
+  M.notion('mediatrice', {
+    lesson: {
+      retenir: 'La <b>médiatrice</b> d’un segment est la droite <b>perpendiculaire</b> à ce segment qui passe par son <b>milieu</b>. Propriété : un point est sur la médiatrice de [AB] <b>si et seulement si</b> il est <b>à égale distance</b> de A et de B (MA = MB).',
+      explication: `${mediatriceFig}<p>La droite rouge est la médiatrice de [AB] : elle coupe [AB] en son milieu I, à angle droit. Le point M est dessus, donc MA = MB.</p>`,
+      methode: [
+        'Pour la tracer à la règle et à l’équerre : place le milieu I de [AB], puis trace la perpendiculaire à (AB) passant par I.',
+        'Au compas : avec un même écartement (plus grand que la moitié de AB), trace deux arcs de centre A et deux arcs de centre B ; les deux points d’intersection sont sur la médiatrice.',
+        'Pour savoir si un point M est sur la médiatrice : compare MA et MB.',
+        'Dans un triangle ABC, les trois médiatrices se coupent en un même point O. Comme OA = OB = OC, le cercle de centre O qui passe par A passe aussi par B et C : c’est le <b>cercle circonscrit</b> au triangle.',
+      ],
+      exemples: [
+        { q: 'M est sur la médiatrice de [AB] et MA = 4,5 cm. Combien mesure MB ?', r: 'MB = MA = <b>4,5 cm</b>.' },
+        { q: 'NA = 3 cm et NB = 3,2 cm. N est-il sur la médiatrice de [AB] ?', r: '<b>Non</b>, car NA ≠ NB.' },
+      ],
+      erreurs: ['Tracer une perpendiculaire qui ne passe pas par le milieu, ou une droite qui passe par le milieu sans être perpendiculaire.'],
+    },
+    generate(level, rng) {
+      if (level === 1) {
+        if (rng.chance(0.5)) {
+          const good = 'perpendiculaire au segment et passe par son milieu';
+          return Q('me1d', 'La médiatrice d’un segment est la droite qui est…', choice(rng, good, ['parallèle au segment et passe par son milieu', 'perpendiculaire au segment et passe par une extrémité', 'qui passe par les deux extrémités du segment']), 'Deux conditions : un angle droit, et le milieu.', `Elle est <b>${good}</b>.`);
+        }
+        const ab = dec(rng.int(30, 150), 1), ai = div(ab, 2);
+        return Q(`me1m:${ab}`, `I est le milieu de [AB] et AB = ${fmt(ab)} cm. Combien mesure AI ?`, num(ai, 'cm'), 'Le milieu partage le segment en deux longueurs égales.', `AI = AB ÷ 2 = ${fmt(ab)} ÷ 2 = <b>${fmt(ai)} cm</b>.`);
+      }
+      if (level === 2) {
+        const d = dec(rng.int(15, 120), 1);
+        return Q(`me2:${d}`, `M est un point de la médiatrice de [AB] et MA = ${fmt(d)} cm. Combien mesure MB ?`, num(d, 'cm'), 'Un point de la médiatrice est à égale distance des extrémités.', `M est sur la médiatrice, donc MB = MA = <b>${fmt(d)} cm</b>.`);
+      }
+      if (rng.chance(0.35)) {
+        const r = dec(rng.int(20, 90), 1), P = rng.pick(['B', 'C']);
+        return Q(`me3c:${r}:${P}`, `Les trois médiatrices du triangle ABC se coupent au point O, et OA = ${fmt(r)} cm. Combien mesure O${P} ?`, num(r, 'cm'), 'O est sur la médiatrice de [AB] et sur celle de [AC].', `O est sur les médiatrices, donc OA = OB = OC : O${P} = <b>${fmt(r)} cm</b>. Le cercle de centre O et de rayon ${fmt(r)} cm passe par A, B et C : c’est le cercle circonscrit.`);
+      }
+      const a = dec(rng.int(20, 80), 1), same = rng.chance(0.5), b = same ? a : add(a, rng.pick([0.1, 0.2, -0.1, 0.5]));
+      return Q(`me3:${a}:${b}`, `NA = ${fmt(a)} cm et NB = ${fmt(b)} cm. Le point N est-il sur la médiatrice de [AB] ?`, TF_YN(same), 'Compare NA et NB.', same ? `<b>Oui</b> : NA = NB, donc N est à égale distance de A et B.` : `<b>Non</b> : NA ≠ NB.`);
+    },
+  });
+
+  // ===================== SOLIDES =====================
+  const SOLIDS = [
+    { name: 'le cube', faces: 6, aretes: 12, sommets: 8, desc: '6 faces carrées identiques' },
+    { name: 'le pavé droit', faces: 6, aretes: 12, sommets: 8, desc: '6 faces rectangulaires, opposées deux à deux identiques' },
+    { name: 'la pyramide à base carrée', faces: 5, aretes: 8, sommets: 5, desc: 'une base carrée et 4 faces triangulaires qui se rejoignent en un sommet' },
+    { name: 'le prisme droit à base triangulaire', faces: 5, aretes: 9, sommets: 6, desc: '2 bases triangulaires identiques et 3 faces rectangulaires' },
+  ];
+  const ROUND = [
+    ['deux bases qui sont des disques et une surface courbe', 'un cylindre'],
+    ['une base qui est un disque, une surface courbe et un sommet', 'un cône'],
+    ['aucune face plane : tous ses points sont à la même distance du centre', 'une boule'],
+    ['2 bases triangulaires identiques et 3 faces rectangulaires', 'un prisme droit'],
+    ['une base polygonale et des faces triangulaires qui se rejoignent en un sommet', 'une pyramide'],
+    ['6 faces carrées identiques', 'un cube'],
+  ];
+  // Cube nets drawn as unit squares [col, row].
+  function netSvg(cells, label) {
+    const c = 22, w = 6 * c + 10, h = 4 * c + 10;
+    const body = cells.map(([x, y]) => `<rect x="${5 + x * c}" y="${5 + y * c}" width="${c}" height="${c}" class="s-soft s-line"/>`).join('');
+    return `<div class="net"><b>${label}</b>${rawSvg(w, h, body)}</div>`;
+  }
+  const strip = [[0, 1], [1, 1], [2, 1], [3, 1]];
+  function validNet(rng) { return [...strip, [rng.int(0, 3), 0], [rng.int(0, 3), 2]]; }   // 1-4-1: always a cube net
+  function invalidNet(rng, k) {
+    if (k === 0) { const [a, b] = rng.sample([0, 1, 2, 3], 2); return [...strip, [a, 0], [b, 0]]; }   // both flaps on the same side
+    if (k === 1) return [[0, 1], [1, 1], [2, 1], [3, 1], [4, 1], [rng.int(0, 4), 0]];                // 5 in a row
+    return [[0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1]];                                            // 2 × 3 block
+  }
+  M.notion('solides', {
+    lesson: {
+      retenir: `Un <b>polyèdre</b> est un solide dont toutes les faces sont des polygones. Vocabulaire : les <b>faces</b> (surfaces planes), les <b>arêtes</b> (côtés des faces), les <b>sommets</b> (coins). Un cube et un pavé droit ont <b>6 faces, 12 arêtes et 8 sommets</b>. Un <b>patron</b> est une figure plane qu’on peut plier pour fabriquer le solide.`,
+      explication: `${S.pave('arête', '', '')}${M.h.table([['Solide', 'Faces', 'Arêtes', 'Sommets'], ...SOLIDS.map(s => [s.name.replace(/^le |^la /, ''), s.faces, s.aretes, s.sommets])])}<p>Solides « ronds » : le <b>cylindre</b>, le <b>cône</b> et la <b>boule</b> ne sont pas des polyèdres.</p>`,
+      methode: [
+        'Pour compter les arêtes d’un cube : 4 en haut, 4 en bas, 4 verticales = 12.',
+        'Pour savoir si une figure est un patron de cube : il faut 6 carrés, et chaque face doit trouver sa place sans qu’il y en ait deux au même endroit une fois pliée.',
+        'Patron classique : une bande de 4 carrés (les 4 côtés), avec un carré d’un côté de la bande (le dessus) et un carré de l’autre côté (le dessous).',
+      ],
+      exemples: [
+        { q: 'Combien d’arêtes a une pyramide à base carrée ?', r: '4 autour de la base + 4 qui montent au sommet = <b>8</b>.' },
+        { q: 'Une bande de 4 carrés avec 2 carrés du même côté est-elle un patron de cube ?', r: '<b>Non</b> : les 2 carrés se retrouvent tous les deux sur le dessus, et il manque le dessous.' },
+      ],
+      erreurs: ['Croire que 6 carrés accolés forment toujours un patron de cube (un rectangle 2 × 3 n’en est pas un).'],
+    },
+    generate(level, rng) {
+      if (level === 1) {
+        const s = rng.pick(SOLIDS.slice(0, 2)), what = rng.pick(['faces', 'aretes', 'sommets']);
+        const lab = { faces: 'faces', aretes: 'arêtes', sommets: 'sommets' }[what];
+        return Q(`so1:${s.name}:${what}`, `Combien de <b>${lab}</b> a ${s.name} ?`, num(s[what]), 'Imagine un dé à jouer.', `${s.name.charAt(0).toUpperCase() + s.name.slice(1)} a <b>${s[what]}</b> ${lab} (${s.faces} faces, ${s.aretes} arêtes, ${s.sommets} sommets).`);
+      }
+      if (level === 2) {
+        if (rng.chance(0.5)) {
+          const [desc, name] = rng.pick(ROUND), others = ROUND.map(r => r[1]).filter(n => n !== name);
+          return Q(`so2:${name}`, `Quel solide a ${desc} ?`, choice(rng, name, rng.sample(others, 3)), 'Pense aux formes des faces.', `C’est <b>${name}</b>.`);
+        }
+        const s = rng.pick(SOLIDS.slice(2)), what = rng.pick(['faces', 'aretes', 'sommets']);
+        const lab = { faces: 'faces', aretes: 'arêtes', sommets: 'sommets' }[what];
+        return Q(`so2c:${s.name}:${what}`, `Combien de <b>${lab}</b> a ${s.name} ?`, num(s[what]), `Elle (ou il) a ${s.desc}.`, `${s.name.charAt(0).toUpperCase() + s.name.slice(1)} a <b>${s[what]}</b> ${lab} (${s.faces} faces, ${s.aretes} arêtes, ${s.sommets} sommets).`);
+      }
+      const letters = ['A', 'B', 'C', 'D'], kinds = rng.shuffle([0, 1, 2]);
+      const nets = rng.shuffle([{ ok: true, cells: validNet(rng) }, ...kinds.map(k => ({ ok: false, cells: invalidNet(rng, k) }))]);
+      const good = letters[nets.findIndex(n => n.ok)];
+      return Q(`so3:${JSON.stringify(nets.map(n => n.cells))}`, `<div class="nets">${nets.map((n, i) => netSvg(n.cells, letters[i])).join('')}</div>Laquelle de ces figures est un patron de cube ?`, fixedChoice(letters, good), 'Cherche une bande de 4 carrés avec un carré de chaque côté.', `C’est la figure <b>${good}</b> : une bande de 4 carrés (les côtés), un carré au-dessus (le dessus) et un en dessous (le dessous). Les autres : deux carrés du même côté, 5 carrés alignés, ou un rectangle 2 × 3 ne se replient pas en cube.`);
     },
   });
 })();

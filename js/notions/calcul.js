@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   const M = globalThis.M;
-  const { fmt, dec, decimals, mul, add, sub, div, round, divisors, range } = M.u;
+  const { fmt, dec, decimals, mul, add, sub, div, round, divisors, range, gcd, lcm } = M.u;
   const { posee, hole, frac } = M.h;
   const { Q, num, choice, fixedChoice } = M.kit;
 
@@ -347,34 +347,196 @@
   M.notion('divisibilite', {
     lesson: {
       retenir: `Un nombre entier est divisible :<ul>
-        <li>par <b>2</b> si son chiffre des unités est 0, 2, 4, 6 ou 8 (nombre pair) ;</li>
+        <li>par <b>2</b> si son chiffre des unités est 0, 2, 4, 6 ou 8 (on dit qu’il est <b>pair</b>) ;</li>
         <li>par <b>5</b> si son chiffre des unités est 0 ou 5 ;</li>
-        <li>par <b>10</b> si son chiffre des unités est 0 ;</li>
-        <li>par <b>3</b> si la <b>somme de ses chiffres</b> est divisible par 3 ;</li>
-        <li>par <b>9</b> si la <b>somme de ses chiffres</b> est divisible par 9.</li></ul>`,
+        <li>par <b>10</b> si son chiffre des unités est 0.</li></ul>`,
       methode: [
-        'Pour 2, 5 et 10 : regarde seulement le chiffre des unités.',
-        'Pour 3 et 9 : additionne tous les chiffres, puis regarde si cette somme est dans la table de 3 (ou de 9).',
+        'Regarde seulement le chiffre des unités (le dernier chiffre).',
+        'Compare-le à la règle : 0, 2, 4, 6, 8 pour 2 ; 0 ou 5 pour 5 ; 0 pour 10.',
       ],
       exemples: [
-        { q: '1 236 est-il divisible par 3 ? par 9 ?', r: '1 + 2 + 3 + 6 = 12. 12 est divisible par 3 mais pas par 9 → divisible par <b>3</b>, pas par 9.' },
         { q: '4 095 est-il divisible par 5 ?', r: '<b>Oui</b>, il se termine par 5.' },
+        { q: '1 236 est-il divisible par 2 ? par 10 ?', r: 'Il se termine par 6 : divisible par <b>2</b> (il est pair), mais <b>pas</b> par 10.' },
       ],
-      astuces: ['Un nombre divisible par 9 est toujours divisible par 3 (mais pas l’inverse).', 'Divisible par 10 = divisible par 2 et par 5.'],
-      erreurs: ['Pour 3 : regarder le chiffre des unités. 13 se termine par 3 mais n’est pas divisible par 3 !'],
+      astuces: ['Divisible par 10, c’est être divisible à la fois par 2 et par 5.'],
+      erreurs: ['Regarder le premier chiffre au lieu du dernier : 52 n’est pas divisible par 5.'],
     },
     generate(level, rng) {
       if (level === 3) {
-        const d = rng.pick([3, 9]);
-        let good;
-        do good = rng.int(100, 9999); while (good % d !== 0);
+        // Which of 2, 5, 10 divide n? (one combined answer)
+        const ending = rng.pick([0, 5, 2, 4, 6, 8, 1, 3, 7, 9]), n = rng.int(10, 999) * 10 + ending;
+        const ds = [2, 5, 10].filter(d => n % d === 0);
+        const label = arr => (arr.length ? arr.join(', ').replace(/, (\d+)$/, ' et $1') : 'aucun des trois');
+        const opts = [[2], [5], [2, 5, 10], []].map(label);
+        return Q(`dv3:${n}`, `Par quels nombres parmi 2, 5 et 10 le nombre ${fmt(n)} est-il divisible ?`, choice(rng, label(ds), opts.filter(o => o !== label(ds))), 'Regarde le chiffre des unités.', `${fmt(n)} se termine par ${ending} : divisible par <b>${label(ds)}</b>.`);
+      }
+      if (level === 2) {
+        const d = rng.pick([2, 5, 10]);
+        let good; do good = rng.int(100, 9999); while (good % d !== 0);
         const bads = [];
         while (bads.length < 3) { const x = rng.int(100, 9999); if (x % d !== 0 && !bads.includes(x)) bads.push(x); }
-        return Q(`div3:${d}:${good}`, `Lequel de ces nombres est divisible par ${d} ?`, choice(rng, fmt(good), bads.map(fmt)), 'Calcule la somme des chiffres de chaque nombre.', `Pour ${fmt(good)}, ${divReason(good, d)}, qui est divisible par ${d} → <b>${fmt(good)}</b>.`);
+        return Q(`dv2:${d}:${good}`, `Lequel de ces nombres est divisible par ${d} ?`, choice(rng, fmt(good), bads.map(fmt)), 'Regarde le chiffre des unités de chaque nombre.', `${fmt(good)} : ${divReason(good, d)} → <b>${fmt(good)}</b>.`);
       }
-      const d = level === 1 ? rng.pick([2, 5, 10]) : rng.pick([3, 9]);
-      const n = rng.int(100, level === 1 ? 999 : 9999), yes = n % d === 0;
-      return Q(`dv:${n}:${d}`, `${fmt(n)} est-il divisible par ${d} ?`, yesNo(yes), d >= 3 ? 'Calcule la somme des chiffres.' : 'Regarde le chiffre des unités.', `<b>${yes ? 'Oui' : 'Non'}</b> : ${divReason(n, d)}.`);
+      const d = rng.pick([2, 5, 10]), n = rng.int(10, 999), yes = n % d === 0;
+      return Q(`dv:${n}:${d}`, `${fmt(n)} est-il divisible par ${d} ?`, yesNo(yes), 'Regarde le chiffre des unités.', `<b>${yes ? 'Oui' : 'Non'}</b> : ${divReason(n, d)}.`);
+    },
+  });
+
+  // ===================== VOCABULAIRE DES OPÉRATIONS =====================
+  const OPS = {
+    somme: { sym: '+', f: (a, b) => a + b, terms: 'termes', phrase: (a, b) => `la somme de ${a} et ${b}` },
+    différence: { sym: '−', f: (a, b) => a - b, terms: 'termes', phrase: (a, b) => `la différence entre ${a} et ${b}` },
+    produit: { sym: '×', f: (a, b) => a * b, terms: 'facteurs', phrase: (a, b) => `le produit de ${a} par ${b}` },
+    quotient: { sym: '÷', f: (a, b) => a / b, terms: '', phrase: (a, b) => `le quotient de ${a} par ${b}` },
+  };
+  function opPair(rng, name) {
+    if (name === 'quotient') { const b = rng.int(2, 9), q = rng.int(2, 12); return [b * q, b]; }
+    if (name === 'différence') { const b = rng.int(2, 50); return [b + rng.int(1, 50), b]; }
+    if (name === 'produit') return [rng.int(2, 12), rng.int(2, 9)];
+    return [rng.int(2, 60), rng.int(2, 60)];
+  }
+  M.notion('vocabulaire-op', {
+    lesson: {
+      retenir: `${M.h.table([['Opération', 'Résultat', 'Les nombres s’appellent'], ['12 + 8 = 20', 'la <b>somme</b>', 'les <b>termes</b>'], ['12 − 8 = 4', 'la <b>différence</b>', 'les <b>termes</b>'], ['12 × 8 = 96', 'le <b>produit</b>', 'les <b>facteurs</b>'], ['12 ÷ 4 = 3', 'le <b>quotient</b>', 'le dividende et le diviseur']])}`,
+      explication: '<p>Ces mots permettent d’écrire un calcul avec une phrase : « le produit de la somme de 2 et 3 par 4 », c’est (2 + 3) × 4 = 20. Le mot qui vient en premier dans la phrase correspond à la <b>dernière</b> opération effectuée.</p>',
+      methode: [
+        'Repère le premier mot (somme, différence, produit, quotient) : c’est l’opération principale.',
+        'Cherche ce qu’il y a de chaque côté (« de … et de … », « de … par … ») : ce sont ses deux nombres, qui peuvent être eux-mêmes des calculs.',
+        'Écris le calcul avec des parenthèses si besoin, puis calcule.',
+      ],
+      exemples: [
+        { q: 'La somme de 7 et du produit de 3 par 5', r: '7 + 3 × 5 = 7 + 15 = <b>22</b>.' },
+        { q: 'Le produit de la somme de 2 et 3 par 4', r: '(2 + 3) × 4 = <b>20</b>.' },
+      ],
+      astuces: ['Le double = × 2 ; le triple = × 3 ; la moitié = ÷ 2 ; le quart = ÷ 4.'],
+      erreurs: ['Confondre termes (addition, soustraction) et facteurs (multiplication).'],
+    },
+    generate(level, rng) {
+      const names = Object.keys(OPS);
+      if (level === 1) {
+        const name = rng.pick(names), [a, b] = opPair(rng, name), r = OPS[name].f(a, b);
+        return Q(`vo1:${name}:${a}:${b}`, `Calcule ${OPS[name].phrase(a, b)}.`, num(r), `${name.charAt(0).toUpperCase() + name.slice(1)} → ${OPS[name].sym}`, `${a} ${OPS[name].sym} ${b} = <b>${fmt(r)}</b>`);
+      }
+      if (level === 2) {
+        if (rng.chance(0.5)) {
+          const name = rng.pick(names), [a, b] = opPair(rng, name), r = OPS[name].f(a, b);
+          const opts = ['la somme', 'la différence', 'le produit', 'le quotient'], good = name === 'somme' || name === 'différence' ? `la ${name}` : `le ${name}`;
+          return Q(`vo2r:${name}:${a}:${b}`, `Dans ${a} ${OPS[name].sym} ${b} = ${fmt(r)}, le nombre ${fmt(r)} est :`, fixedChoice(opts, good), 'Quelle opération est faite ?', `C’est le résultat d’${name === 'somme' || name === 'différence' ? 'une ' + (name === 'somme' ? 'addition' : 'soustraction') : name === 'produit' ? 'une multiplication' : 'une division'} : <b>${good}</b>.`);
+        }
+        const [word, f] = rng.pick([['le double', x => 2 * x], ['le triple', x => 3 * x], ['la moitié', x => x / 2], ['le quart', x => x / 4]]);
+        const x = rng.int(3, 30) * 4, r = f(x);
+        return Q(`vo2d:${word}:${x}`, `Quel est ${word} de ${x} ?`, num(r), 'Double = × 2, triple = × 3, moitié = ÷ 2, quart = ÷ 4.', `${word.charAt(0).toUpperCase() + word.slice(1)} de ${x} : <b>${fmt(r)}</b>`);
+      }
+      const a = rng.int(2, 9), b = rng.int(2, 9), c = rng.int(2, 9);
+      const forms = [
+        [`le produit de la somme de ${a} et ${b} par ${c}`, `(${a} + ${b}) × ${c}`, (a + b) * c],
+        [`la somme de ${a} et du produit de ${b} par ${c}`, `${a} + ${b} × ${c}`, a + b * c],
+        [`le double de la somme de ${a} et ${b}`, `2 × (${a} + ${b})`, 2 * (a + b)],
+        [`la différence entre le produit de ${b} par ${c} et ${a}`, `${b} × ${c} − ${a}`, b * c - a],
+      ].filter(f => f[2] >= 0);
+      const [txt, expr, r] = rng.pick(forms);
+      return Q(`vo3:${txt}`, `Calcule ${txt}.`, num(r), 'Le premier mot de la phrase est la dernière opération à faire.', `${expr} = <b>${fmt(r)}</b>`);
+    },
+  });
+
+  // ===================== NOMBRES PREMIERS, PGCD, PPCM =====================
+  const isPrime = n => n > 1 && divisors(n).length === 2;
+  const PRIMES = range(2, 100).filter(isPrime);
+  const smallestFactor = n => range(2, n).find(d => n % d === 0);
+
+  M.notion('nombres-premiers', {
+    lesson: {
+      retenir: 'Un nombre entier est <b>premier</b> s’il a <b>exactement deux diviseurs</b> : 1 et lui-même. Les nombres premiers inférieurs à 50 : 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47. <b>1 n’est pas premier</b> (il n’a qu’un diviseur).',
+      explication: '<p>12 a pour diviseurs 1, 2, 3, 4, 6, 12 : il n’est pas premier. 13 n’a que 1 et 13 : il est premier. On peut toujours écrire un nombre comme un produit de nombres premiers : 84 = 2 × 2 × 3 × 7.</p>',
+      methode: [
+        'Teste la divisibilité par 2, 3, 5, 7… (les nombres premiers dans l’ordre), avec les critères de divisibilité.',
+        'Dès qu’une division tombe juste, le nombre n’est pas premier.',
+        'On peut s’arrêter quand le diviseur testé multiplié par lui-même dépasse le nombre (pour 97 : 10 × 10 &gt; 97, donc tester 2, 3, 5, 7 suffit).',
+      ],
+      exemples: [
+        { q: '91 est-il premier ?', r: '91 = 7 × 13 : <b>non</b> (piège classique !).' },
+        { q: 'Décompose 60 en produit de nombres premiers', r: '60 = 2 × 30 = 2 × 2 × 15 = <b>2 × 2 × 3 × 5</b>.' },
+      ],
+      erreurs: ['Croire que tous les nombres impairs sont premiers : 9, 15, 21, 51, 91 ne le sont pas.', 'Croire que 1 est premier.'],
+    },
+    generate(level, rng) {
+      if (level === 1) {
+        const n = rng.int(2, 40), p = isPrime(n);
+        return Q(`np1:${n}`, `${n} est-il un nombre premier ?`, fixedChoice(['Oui', 'Non'], p ? 'Oui' : 'Non'), 'Cherche un diviseur autre que 1 et lui-même.', p ? `<b>Oui</b> : ses seuls diviseurs sont 1 et ${n}.` : `<b>Non</b> : ${n} = ${smallestFactor(n)} × ${n / smallestFactor(n)}.`);
+      }
+      if (level === 2) {
+        const good = rng.pick(PRIMES.filter(p => p > 30));
+        const tricky = [33, 39, 49, 51, 57, 63, 69, 77, 81, 87, 91, 93, 99];
+        const bads = rng.sample(tricky, 3);
+        return Q(`np2:${good}:${bads}`, 'Lequel de ces nombres est premier ?', choice(rng, String(good), bads.map(String)), 'Teste la divisibilité par 3 et par 7 : les pièges sont souvent là.', `<b>${good}</b> est premier. Les autres : ${bads.map(b => `${b} = ${smallestFactor(b)} × ${b / smallestFactor(b)}`).join(' ; ')}.`);
+      }
+      const k = rng.int(3, 4), fs = Array.from({ length: k }, () => rng.pick([2, 2, 3, 3, 5, 7, 11])).sort((a, b) => a - b);
+      const n = fs.reduce((a, b) => a * b, 1), last = fs[fs.length - 1];
+      return Q(`np3:${fs}`, `Complète la décomposition en facteurs premiers : ${n} = ${fs.slice(0, -1).join(' × ')} × ${hole}`, num(last), `Calcule ${n} ÷ (${fs.slice(0, -1).join(' × ')}).`, `${fs.slice(0, -1).join(' × ')} = ${n / last}, et ${n} ÷ ${n / last} = <b>${last}</b>.`);
+    },
+  });
+
+  const list = n => divisors(n).join(', ');
+  M.notion('pgcd', {
+    lesson: {
+      retenir: 'Un <b>diviseur commun</b> à deux nombres divise les deux. Le <b>PGCD</b> (Plus Grand Commun Diviseur) est le plus grand d’entre eux. Si on simplifie une fraction par le PGCD, on obtient directement une fraction <b>irréductible</b>.',
+      explication: `<p>Diviseurs de 12 : 1, 2, <b>3</b>, 4, <b>6</b>, 12 — diviseurs de 18 : 1, 2, 3, <b>6</b>, 9, 18.</p><p>Diviseurs communs : 1, 2, 3, 6. Le PGCD de 12 et 18 est <b>6</b>, donc ${frac(12, 18)} = ${frac('12 ÷ 6', '18 ÷ 6')} = ${frac(2, 3)}.</p>`,
+      methode: [
+        'Écris la liste des diviseurs de chaque nombre (par paires : 1 × …, 2 × …, 3 × …).',
+        'Entoure ceux qui sont dans les deux listes : ce sont les diviseurs communs.',
+        'Le plus grand est le PGCD.',
+      ],
+      exemples: [
+        { q: 'PGCD de 24 et 36', r: 'Diviseurs communs : 1, 2, 3, 4, 6, 12 → PGCD = <b>12</b>.' },
+        { q: '48 roses et 36 tulipes : combien de bouquets identiques au maximum, en utilisant toutes les fleurs ?', r: 'Le nombre de bouquets divise 48 et 36 : on cherche le PGCD = <b>12</b> bouquets (4 roses et 3 tulipes chacun).' },
+      ],
+      astuces: ['Si le plus petit nombre divise le plus grand, c’est lui le PGCD (PGCD de 7 et 21 = 7).', 'Deux nombres dont le PGCD est 1 sont dits « premiers entre eux ».'],
+      erreurs: ['Confondre PGCD (un diviseur, donc plus petit que les nombres) et PPCM (un multiple, donc plus grand).'],
+    },
+    generate(level, rng) {
+      const g = level === 1 ? rng.int(2, 6) : rng.int(2, 15);
+      let a, b; do { a = rng.int(1, level === 1 ? 6 : 8); b = rng.int(1, level === 1 ? 6 : 8); } while (a === b || gcd(a, b) !== 1);
+      const x = g * a, y = g * b;
+      const corr = `Diviseurs de ${x} : ${list(x)}<br>Diviseurs de ${y} : ${list(y)}<br>Le plus grand diviseur commun est <b>${g}</b>.`;
+      if (level === 3) {
+        if (rng.chance(0.5)) {
+          const [it1, it2] = rng.pick([['roses', 'tulipes'], ['billes rouges', 'billes bleues'], ['crayons', 'gommes'], ['garçons', 'filles']]);
+          return Q(`pg3:${x}:${y}:${it1}`, `On a ${x} ${it1} et ${y} ${it2}. On veut faire des lots identiques en utilisant tout. Combien de lots au maximum ?`, num(g, 'lots'), 'Le nombre de lots doit diviser les deux nombres.', `${corr}<br>Chaque lot contient ${a} ${it1} et ${b} ${it2}.`);
+        }
+        return Q(`pg3f:${x}/${y}`, `Rends ${frac(x, y)} irréductible en une seule étape (divise par le PGCD).`, { kind: 'fraction', n: a, d: b, simplified: true }, `Cherche le PGCD de ${x} et ${y}.`, `PGCD = ${g} : ${frac(`${x} ÷ ${g}`, `${y} ÷ ${g}`)} = <b>${frac(a, b)}</b>`);
+      }
+      return Q(`pg:${x}:${y}`, `Quel est le PGCD de ${x} et ${y} ?`, num(g), 'Liste les diviseurs de chaque nombre.', corr);
+    },
+  });
+
+  M.notion('ppcm', {
+    lesson: {
+      retenir: 'Un <b>multiple commun</b> à deux nombres est un multiple des deux. Le <b>PPCM</b> (Plus Petit Commun Multiple) est le plus petit d’entre eux (autre que 0). C’est le <b>plus petit dénominateur commun</b> pour additionner deux fractions.',
+      explication: `<p>Multiples de 4 : 4, 8, <b>12</b>, 16, 20, <b>24</b>… — multiples de 6 : 6, <b>12</b>, 18, <b>24</b>…</p><p>Le PPCM de 4 et 6 est <b>12</b>. Donc pour calculer ${frac(1, 4)} + ${frac(1, 6)}, on prend 12 comme dénominateur : ${frac(3, 12)} + ${frac(2, 12)} = ${frac(5, 12)}.</p>`,
+      methode: [
+        'Écris les multiples du plus grand nombre : 6, 12, 18, 24…',
+        'Arrête-toi au premier qui est aussi un multiple de l’autre nombre : c’est le PPCM.',
+      ],
+      exemples: [
+        { q: 'PPCM de 6 et 8', r: 'Multiples de 8 : 8, 16, 24 ; 24 est divisible par 6 → PPCM = <b>24</b>.' },
+        { q: 'Deux phares clignotent toutes les 6 s et toutes les 10 s. Ils clignotent ensemble maintenant : quand recommenceront-ils ensemble ?', r: 'PPCM de 6 et 10 = <b>30 s</b>.' },
+      ],
+      astuces: ['Si les deux nombres n’ont aucun diviseur commun sauf 1, le PPCM est leur produit (PPCM de 4 et 9 = 36).', 'PGCD × PPCM = produit des deux nombres.'],
+      erreurs: ['Prendre toujours le produit : PPCM de 4 et 6 = 12, pas 24.'],
+    },
+    generate(level, rng) {
+      // Neither divides the other: otherwise the PPCM is just the larger number, which the hint names.
+      let a, b; do { a = rng.int(2, level === 1 ? 10 : 20); b = rng.int(2, level === 1 ? 10 : 20); } while (a % b === 0 || b % a === 0 || lcm(a, b) > 200);
+      const m = lcm(a, b), big = Math.max(a, b), small = Math.min(a, b);
+      const mults = []; for (let k = big; k <= m; k += big) mults.push(k);
+      const corr = `Multiples de ${big} : ${mults.join(', ')}. ${fmt(m)} est le premier divisible par ${small} → PPCM = <b>${fmt(m)}</b>.`;
+      if (level === 3) {
+        const v = rng.int(0, 2);
+        if (v === 0) return Q(`pp3:${a}:${b}`, `Deux phares clignotent, l’un toutes les ${a} secondes, l’autre toutes les ${b} secondes. Ils viennent de clignoter ensemble. Dans combien de secondes clignoteront-ils de nouveau ensemble ?`, num(m, 's'), 'On cherche un multiple commun de ' + a + ' et ' + b + '.', corr);
+        if (v === 1) return Q(`pp3b:${a}:${b}`, `Un bus passe toutes les ${a} min, un tram toutes les ${b} min. Ils partent ensemble à 8 h. Combien de minutes plus tard repartiront-ils ensemble ?`, num(m, 'min'), 'Cherche le plus petit multiple commun.', corr);
+        return Q(`pp3f:${a}:${b}`, `Quel est le plus petit dénominateur commun pour calculer ${frac(1, a)} + ${frac(1, b)} ?`, num(m), 'C’est le PPCM des dénominateurs.', corr);
+      }
+      return Q(`pp:${a}:${b}`, `Quel est le PPCM de ${a} et ${b} ?`, num(m), `Écris les multiples de ${big}.`, corr);
     },
   });
 })();

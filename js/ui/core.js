@@ -28,7 +28,7 @@
     const params = Object.fromEntries(r.keys.map((k, i) => [k, m[i + 1]]));
     document.querySelectorAll('[data-nav]').forEach(a => a.classList.toggle('active', path.startsWith(a.dataset.nav)));
     window.scrollTo(0, 0);
-    r.view(params);
+    if (!M.store.read().name) M.ui.welcome(); else r.view(params);
     if (!app.contains(document.activeElement)) app.focus({ preventScroll: true });
   }
 
@@ -83,7 +83,13 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
   const notionStatus = (state, no) => P.statusOf(state, no);
+  // Class tag of a notion in the pupil's chosen programme ("+" when outside it).
+  function levelTag(state, no) {
+    const lv = M.programmes.levelIn(state.target.version, no.id);
+    return lv === M.programmes.HORS ? '<span class="tag tag-plus" title="Hors programme : pour aller plus loin">+</span>' : `<span class="tag">${lv}</span>`;
+  }
+  const targetLabel = state => `${state.target.classe} · ${M.programmes.byId(state.target.version).label}`;
   const notionStars = (state, no) => P.stars(state.notions[no.id], no);
 
-  M.ui = { route, navigate, render, onLeave, onKey, openModal, closeModal, esc, announce, STATUS, statusHtml, starsHtml, barHtml, download, notionStatus, notionStars };
+  M.ui = { route, navigate, render, onLeave, onKey, openModal, closeModal, esc, announce, STATUS, statusHtml, starsHtml, barHtml, download, notionStatus, notionStars, levelTag, targetLabel };
 })();

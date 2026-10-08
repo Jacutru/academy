@@ -96,7 +96,8 @@
     const N = toInt(x, d), f = pow10(d - k);
     return dec(Math.trunc(N / f), k);
   }
-  const eq = (a, b) => Math.abs(a - b) < 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
+  // Tolerates float noise only (relative 1e-12): large integers must match exactly.
+  const eq = (a, b) => Math.abs(a - b) <= 1e-12 * Math.max(1, Math.abs(a), Math.abs(b));
   const isNice = (x, maxK = 6) => Number.isFinite(x) && decimals(x) <= maxK;
 
   // ---------- French formatting ----------

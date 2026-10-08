@@ -2,7 +2,7 @@
 // which stays the single list of files. Afterwards: serve from cache, refresh in the background,
 // so a new version is picked up on the following launch.
 'use strict';
-const CACHE = 'maths6e-v1';
+const CACHE = 'academy-v2';
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {

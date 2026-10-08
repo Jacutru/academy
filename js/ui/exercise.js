@@ -170,7 +170,7 @@
       if (ok) {
         phase = 'feedback';
         if (inEl) { inEl.classList.add('flash-ok'); inEl.readOnly = true; }
-        feedback('ok', `<h3>✅ ${pick(PRAISE)}${tries === 2 ? ' Deuxième essai réussi.' : ''}${streak >= 5 && tries === 1 ? ` 🔥 ${streak} d’affilée !` : ''}</h3>`);
+        feedback('ok', `<h3>✅ ${pick([...PRAISE, `Bravo ${UI.esc(M.store.read().name)} !`])}${tries === 2 ? ' Deuxième essai réussi.' : ''}${streak >= 5 && tries === 1 ? ` 🔥 ${streak} d’affilée !` : ''}</h3>`);
         autoTimer = setTimeout(next, isChrono ? 250 : 900);
       } else if (!singleTry() && tries === 1) {
         feedback('ko', `<h3>❌ Pas tout à fait…</h3><b>Indice :</b> ${item.q.hint} <br><small>Tu as droit à un deuxième essai.</small>`);
@@ -185,9 +185,10 @@
           autoTimer = setTimeout(next, 1200);
         } else {
           feedback('ko', `<h3>❌ La bonne réponse : ${A.show(a)}</h3><div class="corr">${item.q.correction}</div>
-            <div class="row" style="margin-top:10px"><button class="btn primary" data-act="next">Continuer <kbd>Entrée</kbd></button><button class="btn" data-act="fb-lesson">📖 Revoir la leçon</button></div>`);
+            <div class="row" style="margin-top:10px"><button class="btn primary" data-act="next">Continuer <kbd>Entrée</kbd></button><button class="btn" data-act="fb-explain">🤔 Explique-moi autrement</button><button class="btn" data-act="fb-lesson">📖 Revoir la leçon</button></div>`);
           stage.querySelector('[data-act=next]').addEventListener('click', next);
           stage.querySelector('[data-act=fb-lesson]').addEventListener('click', openLesson);
+          stage.querySelector('[data-act=fb-explain]').addEventListener('click', () => { pause(); UI.showExplainModal(item.id, () => { resume(); stage.querySelector('[data-act=next]')?.focus(); }); });
           stage.querySelector('[data-act=next]').focus();
         }
       }
@@ -211,7 +212,7 @@
       const diagAll = run.mode === 'diag' ? [...run.touched].map(id => ({ id, no: byId[id], after: P.statusOf(state, byId[id]) })) : [];
       stage.innerHTML = `<div class="card summary">
         <h1>${isChrono ? '⏱ Temps écoulé !' : run.mode === 'diag' ? '🧭 Bilan terminé' : '🏁 Session terminée'}</h1>
-        ${s.answered ? `<div class="score">${s.correct} / ${s.answered}</div><p class="center muted">${isChrono ? `bonnes réponses en 60 secondes · record : ${best}${record ? ' — 🎉 nouveau record !' : ''}` : `bonnes réponses du premier coup (${pct} %)`}</p>` : '<p class="center muted">Aucune réponse cette fois.</p>'}
+        ${s.answered ? `<div class="score">${s.correct} / ${s.answered}</div>${!isChrono ? `<p class="center">${pct >= 70 ? 'Bien joué' : 'Continue comme ça'}, ${UI.esc(M.store.read().name)} !</p>` : ''}<p class="center muted">${isChrono ? `bonnes réponses en 60 secondes · record : ${best}${record ? ' — 🎉 nouveau record !' : ''}` : `bonnes réponses du premier coup (${pct} %)`}</p>` : '<p class="center muted">Aucune réponse cette fois.</p>'}
         ${s.newBadges.length ? `<h2>🏅 Nouveau badge !</h2><div class="badges">${s.newBadges.map(b => `<div class="badge"><span class="ic">${b.icon}</span><div><b>${b.title}</b><small>${b.desc}</small></div></div>`).join('')}</div>` : ''}
         ${run.mode === 'diag' ? `<h2>Résultats</h2>${nList(diagAll)}` : ''}
         ${run.mode !== 'diag' && s.improved.length ? `<h2>📈 En progrès</h2>${nList(s.improved)}` : ''}

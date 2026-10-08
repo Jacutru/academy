@@ -89,7 +89,9 @@
     weak.forEach(visit);
     weak = ordered.slice(0, 5);
     const dueList = practised.filter(no => P.isDue(state.notions[no.id], no, td)).sort((a, b) => P.due(state.notions[a.id]).localeCompare(P.due(state.notions[b.id])));
-    const fresh = ns.filter(no => st(no) === 'new');
+    // New notions: those of the pupil's target first.
+    const inTarget = new Set(P.inScope(state, ns).map(no => no.id));
+    const fresh = ns.filter(no => st(no) === 'new').sort((a, b) => inTarget.has(b.id) - inTarget.has(a.id));
 
     const reviewSlots = Math.min(dueList.length, Math.round(n * 0.3));
     const main = weak.length ? weak : fresh.slice(0, 4);
@@ -110,7 +112,7 @@
   // ---------- Diagnostic (one domain) ----------
   function diagnostic(domainId) {
     const dom = domains[domainId], state = M.store.read();
-    let ns = P.withContent(dom.notions);
+    let ns = P.inScope(state, dom.notions);
     const todo = ns.filter(no => !(state.notions[no.id] && state.notions[no.id].hist.length));
     if (todo.length) ns = todo;
     const queue = ns.map(no => ({ id: no.id, level: 2, diag: 1 }));

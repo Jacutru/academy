@@ -88,6 +88,20 @@ list.forEach(no => {
   ok(!/undefined|NaN|\[object/.test(html), `${no.id}: lesson contains undefined/NaN`);
 });
 Object.keys(content).forEach(id => ok(byId[id], `orphan notion module ${id} (not in sommaire)`));
+// Every notion offers at least two ways of explaining, in distinct known styles; the lesson's own
+// explanation is always one of them (never dead content).
+list.forEach(no => {
+  const raw = M.cat.explanations[no.id] || [];
+  const styles = raw.map(v => v.style);
+  ok(raw.length >= 2, `${no.id}: needs at least 2 explanations (has ${raw.length})`);
+  ok(new Set(styles).size === styles.length, `${no.id}: duplicate explanation style`);
+  ok(styles.every(st => M.cat.STYLES[st]), `${no.id}: unknown explanation style in ${styles}`);
+  const usesBase = raw.some(v => v.html === M.cat.BASE);
+  const hasBase = !!(content[no.id] && content[no.id].lesson.explication);
+  ok(usesBase === hasBase, `${no.id}: lesson.explication ${hasBase ? 'not offered' : 'missing but referenced'}`);
+  M.cat.explanationsOf(no.id).forEach(v => ok(typeof v.html === 'string' && v.html.length > 30 && !/undefined|NaN/.test(v.html), `${no.id}: empty/bad explanation (${v.style})`));
+});
+Object.keys(M.cat.explanations).forEach(id => ok(byId[id], `explanations for unknown notion ${id}`));
 // Cycle detection.
 const stateOf = {};
 const dfs = (id, trail) => {
@@ -100,7 +114,7 @@ console.log(`  ${list.length} notions in ${M.cat.tree.length} domains`);
 
 // ------------------------------------------------------------------ generators
 section(`generators (${SAMPLES} samples × level)`);
-const BAD = /undefined|NaN|Infinity|\[object|null/;
+const BAD = /undefined|NaN|Infinity|\[object|\bnull\b/;
 const variety = [], leaks = {};
 list.forEach(no => {
   const c = content[no.id];
@@ -127,7 +141,7 @@ list.forEach(no => {
       [q.prompt, q.hint, q.correction, shown, ...(a.options || []), ...(a.items || [])].forEach(t => bad(!BAD.test(String(t)), `bad text: ${String(t).slice(0, 120)}`));
       if (a.kind === 'number') {
         bad(U.isNice(a.value, 6), `not nice: ${a.value}`);
-        bad(a.value >= 0, `negative: ${a.value}`);
+        bad(a.value >= 0 || no.negatives, `negative: ${a.value}`);
         bad(A.check(a, U.fmt(U.add(a.value, 1))).status === 'wrong', 'value+1 accepted');
         bad(q.correction.includes(U.fmt(a.value)), `correction does not show the answer ${U.fmt(a.value)}: ${q.correction.slice(0, 160)}`);
       }
@@ -135,7 +149,7 @@ list.forEach(no => {
         const v = U.fmt(a.value).replace(/\u202f/g, ' ');
         if (new RegExp(`(^|[^\\d,])${v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\d,])`).test(q.hint.replace(/\u202f/g, ' '))) leaks[no.id] = (leaks[no.id] || 0) + 1;
       }
-      if (a.kind === 'fraction') bad(a.n >= 0, `negative fraction ${a.n}/${a.d}`);
+      if (a.kind === 'fraction') bad(a.n >= 0 || no.negatives, `negative fraction ${a.n}/${a.d}`);
       if (a.kind === 'division') bad(a.r >= 0, 'negative remainder');
       keys.add(q.key);
     }
@@ -210,11 +224,30 @@ St.importJSON(dump);
 eq(St.read().log.length, 2, 'import restores');
 let threw = false; try { St.importJSON('{"foo":1}'); } catch (e) { threw = true; } eq(threw, true, 'import rejects foreign JSON');
 const csv = St.exportCSV();
-ok(csv.startsWith('﻿date;heure;notion'), 'CSV header');
+ok(csv.startsWith('\ufeffeleve;date;heure;notion'), 'CSV header');
 eq(csv.trim().split('\r\n').length, 3, 'CSV rows');
 const mig = St.migrate({ notions: { x: { level: 9, box: 7, hist: [{ ok: true, at: 1, ms: 1, lvl: 1 }, { bad: 1 }] } }, days: ['bad', '2026-01-01'] });
 eq([mig.v, mig.notions.x.level, mig.notions.x.box, mig.notions.x.hist.length, mig.days], [1, 3, 4, 1, ['2026-01-01']], 'migrate sanitises');
 eq(St.migrate(null).v, 1, 'migrate(null)');
+eq(St.migrate({ notions: {}, target: { version: '1999', classe: 'CP' } }).target, M.programmes.DEFAULT, 'unknown target falls back to default');
+eq(M.programmes.relation({ version: '2025', classe: '6e' }, 'priorites'), 'apres', 'priorités are after 6e in 2025');
+eq(M.programmes.relation({ version: '2025', classe: '5e' }, 'priorites'), 'cible', 'priorités are 5e in 2025');
+eq(M.programmes.relation({ version: '2025', classe: '5e' }, 'tables-mult'), 'avant', 'tables come before 5e');
+eq(M.programmes.relation({ version: '2025', classe: '6e' }, 'pgcd'), 'hors', 'PGCD outside the 2025 programmes');
+// Every programme version maps every notion to a known class.
+M.programmes.versions.forEach(v => list.forEach(no => ok(M.programmes.CLASSES.includes(v.levels[no.id]) || v.levels[no.id] === 'hors', `${v.id}: bad level for ${no.id}: ${v.levels[no.id]}`)));
+eq(M.programmes.relation({ version: '2008', classe: '6e' }, 'pgcd'), 'apres', 'PGCD was taught later (3e) in 2008');
+eq(M.programmes.relation({ version: '2018', classe: '6e' }, 'priorites'), 'cible', 'priorités were 6e in 2018');
+eq(St.migrate({ notions: {} }).name, '', 'old saves get an empty name');
+St.setName('  Léa   Marie  ');
+eq(St.read().name, 'Léa Marie', 'name trimmed');
+eq(St.fileStem(), 'academy-lea-marie', 'export file stem');
+St.setExplainPref('aires', 'vie'); St.setExplainPref('perimetres', 'vie'); St.setExplainPref('tables-mult', 'dessin');
+eq(P.favoriteStyle(St.read()), 'vie', 'favourite explanation style');
+eq(P.preferredExplanation(St.read(), 'tables-mult', M.cat.explanationsOf('tables-mult')), 0, 'notion choice wins');
+eq(M.cat.explanationsOf('volume-pave')[P.preferredExplanation(St.read(), 'volume-pave', M.cat.explanationsOf('volume-pave'))].style, 'vie', 'favourite style used for other notions');
+eq(St.migrate({ notions: {}, explain: { a: 'vie', b: 'nope', c: 3 } }).explain, { a: 'vie' }, 'migrate keeps only known styles');
+ok(St.exportCSV().split('\r\n')[0].startsWith('\ufeffeleve;date'), 'CSV has the pupil column');
 
 // ------------------------------------------------------------------ engine
 section('engine');
@@ -232,7 +265,7 @@ while ((item = run.next()) && n < 200) {
   St.recordAnswer(item.id, { ok: true, ms: 2000, lvl: item.level, mode: 'diag' });
   run.done(item, true); n++;
 }
-eq(n, M.cat.domains.mesures.notions.length * 2, 'diag asks 2 questions per notion');
+eq(n, P.inScope(St.read(), M.cat.domains.mesures.notions).length * 2, 'diag asks 2 questions per notion of the target');
 eq(P.diagDone(St.read(), M.cat.domains.mesures), true, 'diag part done');
 eq(St.read().notions['aires'].level, 3, 'diag sets level 3 after two right answers');
 eq(P.statusOf(St.read(), byId['aires']), 'mastered', 'diag perfect → mastered');
@@ -248,7 +281,7 @@ ok(plan.findIndex(p => p.id === 'frac-egales') < plan.findIndex(p => p.id === 'f
 St.reset();
 const dr = E.diagnostic('geometrie');
 const d1 = dr.next(); St.recordAnswer(d1.id, { ok: true, ms: 1000, lvl: 2, mode: 'diag' }); dr.done(d1, true);
-eq(dr.total(), M.cat.domains.geometrie.notions.length * 2, 'diag total counts follow-ups upfront');
+eq(dr.total(), P.inScope(St.read(), M.cat.domains.geometrie.notions).length * 2, 'diag total counts follow-ups upfront');
 dr.finish();
 eq(St.read().notions[d1.id].level, 2, 'interrupted diag: level 2 from a right first answer');
 // Free run: retry inserted later, not immediately.

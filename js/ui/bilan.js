@@ -110,7 +110,7 @@
       ${bk.filter(b => b.count).map(b => `<tr><td>${b.full}</td><td class="n">${b.count}</td><td class="n">${b.rate} %</td><td class="n">${b.time === null ? '—' : fmt(b.time) + ' s'}</td></tr>`).join('') || '<tr><td colspan="4" class="empty">Pas encore de données.</td></tr>'}</tbody></table></details>`;
 
     const root = UI.render(`
-      <h1>📈 Mes progrès</h1>
+      <h1>📈 Les progrès de ${UI.esc(state.name)}</h1>
       <div class="grid grid-3">
         <div class="card stat"><b>${fmt(total)}</b>réponses</div>
         <div class="card stat"><b>${total ? Math.round((100 * okN) / total) : 0} %</b>réussies du premier coup</div>
@@ -143,11 +143,25 @@
       <h2>Badges</h2>
       <div class="badges">${badges.map(b => `<div class="badge ${b.earned ? '' : 'off'}"><span class="ic">${b.icon}</span><div><b>${b.title}</b><small>${b.desc}</small></div></div>`).join('')}</div>
 
+      <h2>🎯 Objectif</h2>
+      <div class="card">
+        <form id="target" class="row">
+          <label>Classe <select id="t-classe" class="text-input" style="min-width:6em">${M.programmes.targetClasses.map(c => `<option ${c === state.target.classe ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
+          <label>Programme <select id="t-version" class="text-input">${M.programmes.versions.map(v => `<option value="${v.id}" ${v.id === state.target.version ? 'selected' : ''}>${UI.esc(v.label)}</option>`).join('')}</select></label>
+          <button class="btn primary small">Enregistrer</button>
+        </form>
+        <p><small>${UI.esc(M.programmes.byId(state.target.version).refs)}</small></p>
+        <p><small>Le bilan de départ, la progression et le sommaire (filtre « Mon programme ») portent sur les leçons de cette classe et des classes d’avant, telles que ce programme les définit.</small></p>
+      </div>
+
       <h2>Bilan de départ</h2>
       <div class="row">${M.cat.tree.map(d => `<a class="btn" href="#/diagnostic/${d.id}">🧭 ${d.title} ${P.diagDone(state, d) ? '✓' : ''}</a>`).join('')}</div>
 
       <h2>Données</h2>
       <div class="card">
+        <form id="rename" class="row" style="margin-bottom:12px"><label for="newname">Prénom :</label>
+          <input type="text" id="newname" class="text-input" maxlength="30" value="${UI.esc(state.name)}" autocomplete="off">
+          <button class="btn small">Modifier</button></form>
         <p>${persistent ? 'Les progrès sont enregistrés dans ce navigateur.' : '⚠️ Le navigateur n’autorise pas l’enregistrement : les progrès seront perdus à la fermeture de la page.'}
           <b>Attention :</b> ils sont liés à l’emplacement du dossier de l’application. Si tu déplaces le dossier ou changes de navigateur, fais d’abord une sauvegarde, puis restaure-la.</p>
         <div class="row">
@@ -164,13 +178,23 @@
     root.querySelectorAll('[data-g]').forEach(b => b.addEventListener('click', () => { grain = b.dataset.g; UI.navigate(); }));
     const msg = t => { root.querySelector('#data-msg').textContent = t; };
     const stamp = today();
-    root.querySelector('[data-act=csv]').addEventListener('click', () => { M.ui.download(`maths6e-reponses-${stamp}.csv`, M.store.exportCSV(), 'text/csv;charset=utf-8'); msg('Fichier CSV téléchargé : une ligne par réponse (date, notion, niveau, correct, temps, mode).'); });
-    root.querySelector('[data-act=json]').addEventListener('click', () => { M.ui.download(`maths6e-sauvegarde-${stamp}.json`, M.store.exportJSON(), 'application/json'); msg('Sauvegarde téléchargée.'); });
+    root.querySelector('[data-act=csv]').addEventListener('click', () => { M.ui.download(`${M.store.fileStem()}-reponses-${stamp}.csv`, M.store.exportCSV(), 'text/csv;charset=utf-8'); msg('Fichier CSV téléchargé : une ligne par réponse (date, notion, niveau, correct, temps, mode).'); });
+    root.querySelector('[data-act=json]').addEventListener('click', () => { M.ui.download(`${M.store.fileStem()}-sauvegarde-${stamp}.json`, M.store.exportJSON(), 'application/json'); msg('Sauvegarde téléchargée.'); });
     root.querySelector('[data-act=import]').addEventListener('change', async e => {
       const f = e.target.files[0];
       if (!f) return;
       try { M.store.importJSON(await f.text()); UI.navigate(); UI.announce('Sauvegarde restaurée.'); }
       catch (err) { msg('Impossible de restaurer : ' + (err.message || 'fichier invalide') + '.'); }
+    });
+    root.querySelector('#target').addEventListener('submit', e => {
+      e.preventDefault();
+      M.store.setTarget(root.querySelector('#t-version').value, root.querySelector('#t-classe').value);
+      UI.navigate();
+    });
+    root.querySelector('#rename').addEventListener('submit', e => {
+      e.preventDefault();
+      const v = root.querySelector('#newname').value;
+      if (v.trim()) { M.store.setName(v); UI.navigate(); }
     });
     // Two-step reset, no browser dialog.
     const reset = root.querySelector('[data-act=reset]');

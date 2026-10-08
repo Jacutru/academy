@@ -75,29 +75,26 @@
 
   M.notion('conv-aires', {
     lesson: {
-      retenir: 'Pour les aires, on passe d’une unité à la suivante en multipliant ou divisant par <b>100</b> : 1 m² = 100 dm² = 10 000 cm². Unités agraires : <b>1 a = 1 dam² = 100 m²</b> et <b>1 ha = 1 hm² = 10 000 m²</b>.',
-      explication: `<p>Un carré de 1 m de côté contient 10 × 10 = <b>100</b> carrés de 1 dm de côté. C’est pour ça qu’on a 2 colonnes par unité dans le tableau :</p>${table([['km²', 'hm² (ha)', 'dam² (a)', 'm²', 'dm²', 'cm²', 'mm²'], ['· ·', '· ·', '· ·', '· ·', '· ·', '· ·', '· ·']], { cls: 'conv' })}`,
+      retenir: 'Pour les aires, on passe d’une unité à la suivante en multipliant ou en divisant par <b>100</b> : <b>1 m² = 100 dm²</b> et <b>1 dm² = 100 cm²</b>. Donc 1 cm² = 0,01 dm² et 1 dm² = 0,01 m².',
+      explication: `<p>Un carré de 1 dm de côté contient 10 rangées de 10 petits carrés de 1 cm de côté : 10 × 10 = <b>100</b>. Donc 1 dm² = 100 cm².</p>${S.grid({ cols: 10, rows: 10, cell: 14 })}`,
       methode: [
-        'Compte le nombre d’unités entre les deux (m² → cm² : 2 unités).',
-        'Multiplie ou divise par 100 pour chaque unité (2 unités → 10 000).',
+        'Vers une unité plus petite (m² → dm² → cm²) : multiplie par 100 à chaque étape.',
+        'Vers une unité plus grande (cm² → dm² → m²) : divise par 100 à chaque étape.',
+        'Vérifie : une unité plus petite donne un nombre plus grand.',
       ],
       exemples: [
         { q: '3 m² = ? dm²', r: '× 100 → <b>300 dm²</b>.' },
-        { q: '2,5 ha = ? m²', r: '1 ha = 10 000 m² → <b>25 000 m²</b>.' },
         { q: '450 cm² = ? dm²', r: '÷ 100 → <b>4,5 dm²</b>.' },
+        { q: '2 m² = ? cm²', r: '× 100 puis × 100 → <b>20 000 cm²</b>.' },
       ],
       erreurs: ['Multiplier par 10 comme pour les longueurs : 1 m² = 100 dm², pas 10 dm².'],
     },
     generate(level, rng) {
+      const units = ['m²', 'dm²', 'cm²'];
       if (level === 3 && rng.chance(0.5)) {
-        if (rng.chance(0.5)) {
-          const x = dec(rng.int(1, 99), rng.int(0, 1)), r = mul(x, 10000);
-          return Q(`ca3:${x}ha`, `${fmt(x)} ha = ${hole} m²`, num(r, 'm²'), '1 ha = 10 000 m².', `1 ha = 10 000 m², donc ${fmt(x)} ha = <b>${fmt(r)} m²</b>.`);
-        }
-        const x = rng.int(2, 99) * 100 + (rng.chance(0.5) ? rng.int(1, 9) * 10 : 0), r = div(x, 100);
-        return Q(`ca3:${x}a`, `${fmt(x)} m² = ${hole} a`, num(r, 'a'), '1 a = 100 m².', `1 a = 100 m², donc ${fmt(x)} m² = <b>${fmt(r)} a</b>.`);
+        const m2 = rng.int(1, 9), dm2 = rng.int(1, 99), r = m2 * 100 + dm2;
+        return Q(`ca3:${m2}:${dm2}`, `${m2} m² ${dm2} dm² = ${hole} dm²`, num(r, 'dm²'), `${m2} m² = ${m2 * 100} dm².`, `${m2} m² = ${m2 * 100} dm², donc ${m2} m² ${dm2} dm² = <b>${fmt(r)} dm²</b>.`);
       }
-      const units = SYSTEMS.aire.units.slice(level === 1 ? 3 : 1, 7);
       const [from, to] = pickUnits(rng, units, level === 1 ? 1 : 2);
       return convQ(rng, 'aire', from, to, niceValue(rng, 'aire', from, to, level), 'ca');
     },
@@ -241,64 +238,69 @@
     },
   });
 
+  // L-shaped figure on a grid: a W × H rectangle with a w × h corner removed.
+  function lShape(W, H, w, h) {
+    return S.grid({ cols: W + 1, rows: H + 1, cell: 24, polys: [[[0, 0], [W - w, 0], [W - w, h], [W, h], [W, H], [0, H]]] });
+  }
   M.notion('aires', {
     lesson: {
-      retenir: `L’<b>aire</b> mesure la <b>surface</b> d’une figure (en cm², m²…).<ul><li>Rectangle : A = L × l</li><li>Carré : A = c × c</li><li>Triangle rectangle : A = (côté × côté) ÷ 2</li><li>Triangle : A = (base × hauteur) ÷ 2</li><li>Disque : A = π × r × r (π ≈ 3,14)</li></ul>`,
-      explication: `<p>Un triangle rectangle est la moitié d’un rectangle : d’où le « ÷ 2 ».</p>${S.triangle('6 cm', '4 cm', { right: true })}<p>A = 6 × 4 ÷ 2 = <b>12 cm²</b>.</p><p>Pour un triangle quelconque, la <b>hauteur</b> est perpendiculaire à la base (en pointillés).</p>${S.triangle('base 8 cm', 'h = 5 cm')}<p>A = 8 × 5 ÷ 2 = <b>20 cm²</b>.</p>`,
+      retenir: `L’<b>aire</b> d’une surface mesure la place qu’elle occupe. On l’exprime en cm², dm², m² : <b>1 cm²</b> est l’aire d’un carré de 1 cm de côté.<ul><li>Rectangle : <b>A = L × l</b></li><li>Carré : <b>A = c × c</b></li></ul>`,
+      explication: `${S.grid({ cols: 6, rows: 4, cell: 26, polys: [[[0, 0], [5, 0], [5, 3], [0, 3]]] })}<p>Ce rectangle de 5 cm sur 3 cm contient 3 rangées de 5 carreaux de 1 cm² : A = 5 × 3 = <b>15 cm²</b>.</p>`,
       methode: [
-        'Repère la formule correspondant à la figure.',
-        'Vérifie que les longueurs sont dans la même unité.',
-        'Calcule ; l’unité du résultat est une unité d’aire (cm², m²).',
+        'Vérifie que les deux longueurs sont dans la même unité.',
+        'Multiplie la longueur par la largeur (ou le côté par lui-même).',
+        'Pour une figure plus compliquée, découpe-la en rectangles, puis additionne (ou soustrais) leurs aires.',
       ],
       exemples: [
-        { q: 'Rectangle 7 m × 3,5 m', r: '7 × 3,5 = <b>24,5 m²</b>.' },
-        { q: 'Disque de rayon 10 cm', r: '3,14 × 10 × 10 = <b>314 cm²</b>.' },
+        { q: 'Rectangle de 7 m sur 3,5 m', r: '7 × 3,5 = <b>24,5 m²</b>.' },
+        { q: 'Carré de côté 9 cm', r: '9 × 9 = <b>81 cm²</b>.' },
       ],
-      erreurs: ['Oublier le « ÷ 2 » pour le triangle.', 'Pour le triangle, utiliser un côté oblique au lieu de la hauteur.', 'Calculer π × r × 2 (c’est le périmètre !) au lieu de π × r × r.'],
+      erreurs: ['Confondre aire et périmètre : le périmètre est la longueur du tour (en cm), l’aire est la surface (en cm²).', 'Calculer c × 4 pour l’aire d’un carré (c’est son périmètre !).'],
     },
     generate(level, rng) {
-      const t = level === 1 ? rng.pick(['rect', 'carre']) : level === 2 ? rng.pick(['trirect', 'tri', 'rect']) : rng.pick(['disque', 'inv', 'tri']);
-      const v = () => (level === 1 ? rng.int(2, 15) : rng.chance(0.5) ? rng.int(2, 20) : dec(rng.int(15, 99), 1));
-      if (t === 'rect') { let L, l; do { L = v(); l = v(); } while (l >= L); const A = mul(L, l); return Q(`ai:r${L}x${l}`, `${S.rect(`${fmt(L)} cm`, `${fmt(l)} cm`)}Aire de ce rectangle ?`, num(A, 'cm²'), 'A = L × l', `${fmt(L)} × ${fmt(l)} = <b>${fmt(A)} cm²</b>`); }
-      if (t === 'carre') { const c = v(), A = mul(c, c); return Q(`ai:c${c}`, `${S.rect(`${fmt(c)} cm`, '', { square: true })}Aire de ce carré ?`, num(A, 'cm²'), 'A = c × c', `${fmt(c)} × ${fmt(c)} = <b>${fmt(A)} cm²</b>`); }
-      if (t === 'trirect') { const b = rng.int(2, 20), h = rng.int(2, 20), A = div(b * h, 2); return Q(`ai:tr${b}x${h}`, `${S.triangle(`${b} cm`, `${h} cm`, { right: true })}Aire de ce triangle rectangle ?`, num(A, 'cm²'), 'C’est la moitié d’un rectangle.', `${b} × ${h} ÷ 2 = <b>${fmt(A)} cm²</b>`); }
-      if (t === 'tri') { const b = rng.int(3, 20), h = rng.int(2, 15), A = div(b * h, 2); return Q(`ai:t${b}x${h}`, `${S.triangle(`${b} cm`, `${h} cm`)}Aire de ce triangle (la hauteur est en pointillés) ?`, num(A, 'cm²'), 'A = base × hauteur ÷ 2', `${b} × ${h} ÷ 2 = <b>${fmt(A)} cm²</b>`); }
-      if (t === 'disque') { const r = rng.int(1, 12), A = mul(3.14, r * r); return Q(`ai:d${r}`, `${S.circle(`${r} cm`)}Aire de ce disque de rayon ${r} cm ? (π ≈ 3,14)`, num(A, 'cm²'), 'A = π × r × r', `3,14 × ${r} × ${r} = 3,14 × ${r * r} = <b>${fmt(A)} cm²</b>`); }
-      const L = rng.int(3, 15), l = rng.int(2, L - 1);   // the width is shorter than the length
-      return Q(`ai:inv${L}x${l}`, `Un rectangle a une aire de ${L * l} cm² et une longueur de ${L} cm. Quelle est sa largeur ?`, num(l, 'cm'), 'A = L × l, donc l = A ÷ L.', `${L * l} ÷ ${L} = <b>${l} cm</b>`);
+      if (level === 2 && rng.chance(0.4)) {
+        const W = rng.int(3, 8), H = rng.int(2, 6);
+        return Q(`ai2g:${W}x${H}`, `${S.grid({ cols: W + 1, rows: H + 1, cell: 24, polys: [[[0, 0], [W, 0], [W, H], [0, H]]] })}Chaque carreau mesure 1 cm². Quelle est l’aire du rectangle colorié ?`, num(W * H, 'cm²'), 'Compte les carreaux d’une rangée, puis le nombre de rangées.', `${W} carreaux par rangée × ${H} rangées = <b>${W * H} cm²</b>`);
+      }
+      if (level === 3) {
+        if (rng.chance(0.5)) {
+          const W = rng.int(4, 8), H = rng.int(3, 6), w = rng.int(1, W - 2), h = rng.int(1, H - 2), A = W * H - w * h;
+          return Q(`ai3l:${W}:${H}:${w}:${h}`, `${lShape(W, H, w, h)}Chaque carreau mesure 1 cm². Quelle est l’aire de la figure coloriée ?`, num(A, 'cm²'), 'Imagine le grand rectangle, puis enlève le petit rectangle qui manque.', `Grand rectangle : ${W} × ${H} = ${W * H} ; morceau enlevé : ${w} × ${h} = ${w * h} ; ${W * H} − ${w * h} = <b>${A} cm²</b>`);
+        }
+        const L = rng.int(3, 15), l = rng.int(2, L - 1);   // the width is shorter than the length
+        return Q(`ai:inv${L}x${l}`, `Un rectangle a une aire de ${L * l} cm² et une longueur de ${L} cm. Quelle est sa largeur ?`, num(l, 'cm'), 'A = L × l : quel nombre multiplié par la longueur donne l’aire ?', `${L * l} ÷ ${L} = <b>${l} cm</b>`);
+      }
+      const v = () => (level === 1 ? rng.int(2, 15) : dec(rng.int(15, 99), 1));
+      if (rng.chance(0.5)) { let L, l; do { L = v(); l = v(); } while (l >= L); const A = mul(L, l); return Q(`ai:r${L}x${l}`, `${S.rect(`${fmt(L)} cm`, `${fmt(l)} cm`)}Aire de ce rectangle ?`, num(A, 'cm²'), 'A = L × l', `${fmt(L)} × ${fmt(l)} = <b>${fmt(A)} cm²</b>`); }
+      const c = v(), A = mul(c, c);
+      return Q(`ai:c${c}`, `${S.rect(`${fmt(c)} cm`, '', { square: true })}Aire de ce carré ?`, num(A, 'cm²'), 'A = c × c', `${fmt(c)} × ${fmt(c)} = <b>${fmt(A)} cm²</b>`);
     },
   });
 
   M.notion('volume-pave', {
     lesson: {
-      retenir: '<b>Volume d’un pavé droit</b> : V = L × l × h. <b>Volume d’un cube</b> : V = c × c × c. Le résultat s’exprime en unités de volume (cm³, m³…). Rappel : 1 dm³ = 1 L.',
-      explication: `${S.pave('L = 5 cm', 'l = 3 cm', 'h = 2 cm')}<p>Une couche contient 5 × 3 = 15 cubes de 1 cm³ ; il y a 2 couches : V = 15 × 2 = <b>30 cm³</b>.</p>`,
+      retenir: 'Le <b>volume</b> d’un solide mesure la place qu’il occupe. Unité : le <b>cm³</b>, volume d’un cube de 1 cm d’arête. Pour trouver le volume d’un assemblage de petits cubes de 1 cm³, on <b>compte les cubes</b> — pour un pavé, couche par couche.',
+      explication: `${S.pave('5 cubes', '3 cubes', '2 couches')}<p>Une couche contient 5 × 3 = 15 cubes ; il y a 2 couches : 15 × 2 = <b>30 cubes</b>, donc le volume est <b>30 cm³</b>.</p>`,
       methode: [
-        'Vérifie que les trois longueurs sont dans la même unité.',
-        'Multiplie longueur × largeur × hauteur.',
-        'Pour une contenance en litres, convertis en dm³ (1 dm³ = 1 L).',
+        'Compte les cubes d’une rangée, puis le nombre de rangées : c’est le nombre de cubes d’une couche.',
+        'Compte le nombre de couches.',
+        'Nombre de cubes d’une couche × nombre de couches = nombre total de cubes = volume en cm³.',
       ],
       exemples: [
-        { q: 'Cube de 4 cm d’arête', r: '4 × 4 × 4 = <b>64 cm³</b>.' },
-        { q: 'Aquarium 50 cm × 30 cm × 40 cm, en litres', r: '5 dm × 3 dm × 4 dm = 60 dm³ = <b>60 L</b>.' },
+        { q: 'Un pavé de 4 cubes sur 3 cubes, avec 5 couches', r: '4 × 3 = 12 cubes par couche ; 12 × 5 = <b>60 cm³</b>.' },
+        { q: 'Un cube de 3 cubes de côté', r: '3 × 3 = 9 cubes par couche, 3 couches : <b>27 cm³</b>.' },
       ],
-      erreurs: ['Additionner les longueurs au lieu de les multiplier.', 'Mélanger les unités (cm et m) dans le calcul.'],
+      erreurs: ['Ne compter que les cubes visibles : il y a aussi des cubes cachés à l’intérieur et derrière.'],
     },
     generate(level, rng) {
       if (level === 3) {
-        if (rng.chance(0.5)) {
-          const L = rng.int(2, 8) * 10, l = rng.int(2, 6) * 10, h = rng.int(2, 6) * 10, V = (L * l * h) / 1000;
-          return Q(`vp3:${L}x${l}x${h}`, `Un aquarium a la forme d’un pavé droit de ${L} cm × ${l} cm × ${h} cm. Quelle est sa contenance en litres ?`, num(V, 'L'), 'Convertis en dm, ou calcule en cm³ puis 1 L = 1 000 cm³.', `${L / 10} dm × ${l / 10} dm × ${h / 10} dm = ${fmt(V)} dm³ = <b>${fmt(V)} L</b>`);
-        }
-        const L = rng.int(2, 12), l = rng.int(2, 10), h = rng.int(2, 10);
-        return Q(`vp3i:${L}x${l}x${h}`, `Un pavé droit a un volume de ${L * l * h} cm³, une longueur de ${L} cm et une largeur de ${l} cm. Quelle est sa hauteur ?`, num(h, 'cm'), `Aire de la base : ${L} × ${l}.`, `Base : ${L} × ${l} = ${L * l} cm² ; hauteur : ${L * l * h} ÷ ${L * l} = <b>${h} cm</b>`);
+        const a = rng.int(2, 6), b = rng.int(2, 5), h = rng.int(2, 6), V = a * b * h;
+        if (rng.chance(0.5)) return Q(`vp3:${a}:${b}:${h}`, `Un pavé est construit avec ${V} cubes de 1 cm³. Sa couche du bas compte ${a} cubes sur ${b} cubes. Combien a-t-il de couches ?`, num(h), `Combien de cubes dans une couche ?`, `Une couche : ${a} × ${b} = ${a * b} cubes ; ${V} ÷ ${a * b} = <b>${h}</b> couches.`);
+        const c = rng.int(2, 5);
+        return Q(`vc3:${c}`, `Combien faut-il de cubes de 1 cm³ pour construire un grand cube de ${c} cm d’arête ?`, num(c * c * c, 'cubes'), 'Combien de cubes dans une couche ? Combien de couches ?', `${c} × ${c} = ${c * c} cubes par couche, ${c} couches : <b>${c * c * c}</b> cubes (${c * c * c} cm³).`);
       }
-      if (rng.chance(0.3)) {
-        const c = level === 1 ? rng.int(2, 10) : dec(rng.int(11, 50), 1), V = mul(mul(c, c), c);
-        return Q(`vc:${c}`, `Volume d’un cube de ${fmt(c)} cm d’arête ?`, num(V, 'cm³'), 'V = c × c × c', `${fmt(c)} × ${fmt(c)} × ${fmt(c)} = <b>${fmt(V)} cm³</b>`);
-      }
-      const L = level === 1 ? rng.int(2, 12) : dec(rng.int(15, 99), 1), l = rng.int(2, 10), h = rng.int(2, 10), V = mul(mul(L, l), h);
-      return Q(`vp:${L}x${l}x${h}`, `${S.pave(`${fmt(L)} cm`, `${l} cm`, `${h} cm`)}Volume de ce pavé droit ?`, num(V, 'cm³'), 'V = L × l × h', `${fmt(L)} × ${l} × ${h} = <b>${fmt(V)} cm³</b>`);
+      const a = rng.int(2, level === 1 ? 5 : 9), b = rng.int(2, level === 1 ? 4 : 6), h = rng.int(level === 1 ? 1 : 2, level === 1 ? 3 : 6), V = a * b * h;
+      return Q(`vp:${a}:${b}:${h}`, `${S.pave(`${a} cubes`, `${b} cubes`, `${h} couche${h > 1 ? 's' : ''}`)}Ce pavé est construit avec des cubes de 1 cm³. Quel est son volume ?`, num(V, 'cm³'), 'Compte les cubes d’une couche, puis le nombre de couches.', `Une couche : ${a} × ${b} = ${a * b} cubes ; ${h} couche${h > 1 ? 's' : ''} : ${a * b} × ${h} = <b>${V} cm³</b>`);
     },
   });
 })();

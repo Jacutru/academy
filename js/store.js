@@ -15,7 +15,12 @@
   let memory = null;      // used when localStorage is unavailable
   let available = true;
 
-  const blank = () => ({ v: VERSION, notions: {}, days: [], chronoBest: {}, seen: {}, log: [] });
+  const blank = () => ({ v: VERSION, name: '', target: { ...M.programmes.DEFAULT }, notions: {}, days: [], chronoBest: {}, seen: {}, explain: {}, log: [] });
+  const cleanName = n => String(n).trim().replace(/\s+/g, ' ').slice(0, 30);
+  const cleanTarget = t => ({
+    version: M.programmes.versions.some(v => v.id === t.version) ? t.version : M.programmes.DEFAULT.version,
+    classe: M.programmes.targetClasses.includes(t.classe) ? t.classe : M.programmes.DEFAULT.classe,
+  });
 
   // Upgrade any older/partial state to the current schema.
   function migrate(s) {
@@ -34,6 +39,10 @@
     out.log = Array.isArray(s.log) ? s.log.filter(Array.isArray).slice(-LOG_CAP) : [];
     out.chronoBest = s.chronoBest && typeof s.chronoBest === 'object' ? s.chronoBest : {};
     out.seen = s.seen && typeof s.seen === 'object' ? s.seen : {};
+    out.name = typeof s.name === 'string' ? cleanName(s.name) : '';
+    out.target = cleanTarget(s.target || {});
+    out.explain = {};
+    Object.entries(s.explain || {}).forEach(([id, st]) => { if (typeof st === 'string' && M.cat.STYLES[st]) out.explain[id] = st; });
     return out;
   }
 
@@ -98,6 +107,12 @@
     return record;
   }
 
+  const setName = n => update(s => { s.name = cleanName(n); });
+  const setTarget = (version, classe) => update(s => { s.target = cleanTarget({ version, classe }); });
+  const setExplainPref = (id, style) => update(s => { s.explain[id] = style; });
+  // File names for exports: "academy-lea-2026-10-08".
+  const fileStem = () => ['academy', M.u.norm(read().name).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')].filter(Boolean).join('-');
+
   // ---------- Export / import ----------
   const exportJSON = () => JSON.stringify(read(), null, 1);
   function importJSON(text) {
@@ -109,10 +124,11 @@
   }
   function exportCSV() {
     const pad = n => String(n).padStart(2, '0');
-    const rows = [['date', 'heure', 'notion', 'titre', 'domaine', 'chapitre', 'niveau', 'correct', 'temps_s', 'mode']];
-    read().log.forEach(([at, id, lvl, ok, ms, mode]) => {
+    const { name, log } = read();
+    const rows = [['eleve', 'date', 'heure', 'notion', 'titre', 'domaine', 'chapitre', 'niveau', 'correct', 'temps_s', 'mode']];
+    log.forEach(([at, id, lvl, ok, ms, mode]) => {
       const d = new Date(at), no = M.cat.byId[id];
-      rows.push([today(d), `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`, id, no ? no.title : '', no ? no.domain.title : '', no ? no.chapter.title : '', lvl, ok, (ms / 1000).toFixed(1).replace('.', ','), mode]);
+      rows.push([name, today(d), `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`, id, no ? no.title : '', no ? no.domain.title : '', no ? no.chapter.title : '', lvl, ok, (ms / 1000).toFixed(1).replace('.', ','), mode]);
     });
     const esc = v => { const t = String(v); return /[;"\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
     return '﻿' + rows.map(r => r.map(esc).join(';')).join('\r\n');   // BOM + ';' so Excel (fr) opens it correctly
@@ -120,7 +136,7 @@
   const reset = () => write(blank());
 
   M.store = {
-    KEY, VERSION, blank, migrate, read, update, recordAnswer, setLevel, markSeen, setChronoBest,
+    KEY, VERSION, blank, migrate, read, update, recordAnswer, setLevel, markSeen, setChronoBest, setName, setTarget, setExplainPref, fileStem,
     exportJSON, importJSON, exportCSV, reset,
     isPersistent: () => (read(), available),
   };

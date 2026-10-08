@@ -79,10 +79,12 @@
 
   // ---------- Aggregates over the catalogue ----------
   const withContent = notions => notions.filter(n => M.cat.content[n.id]);
+  // Notions to master for the pupil's target (class + programme version), among those given.
+  const inScope = (state, notions) => withContent(notions).filter(no => M.programmes.inScope(state.target || M.programmes.DEFAULT, no.id));
   const statusOf = (state, no) => status(state.notions[no.id], no);
-  const diagDone = (state, domain) => withContent(domain.notions).every(no => state.notions[no.id] && state.notions[no.id].hist.length);
+  const diagDone = (state, domain) => inScope(state, domain.notions).every(no => state.notions[no.id] && state.notions[no.id].hist.length);
   function domainProgress(state, domain) {
-    const ns = withContent(domain.notions), total = ns.length * 3;
+    const ns = inScope(state, domain.notions), total = ns.length * 3;
     const got = ns.reduce((s, no) => s + stars(state.notions[no.id], no), 0);
     return { stars: got, total, pct: total ? Math.round((100 * got) / total) : 0 };
   }
@@ -100,9 +102,22 @@
   ];
   const badges = state => BADGES.map(b => ({ ...b, earned: !!b.test(state) }));
 
+  // Most chosen explanation style overall (null if none yet).
+  function favoriteStyle(state) {
+    const n = {};
+    Object.values(state.explain || {}).forEach(st => { n[st] = (n[st] || 0) + 1; });
+    const best = Object.entries(n).sort((a, b) => b[1] - a[1])[0];
+    return best ? best[0] : null;
+  }
+  // Index of the explanation to show first for a notion.
+  function preferredExplanation(state, id, variants) {
+    const want = (state.explain || {})[id] || favoriteStyle(state);
+    return Math.max(0, variants.findIndex(v => v.style === want));
+  }
+
   M.progress = {
     INTERVALS, WINDOW, HIST_CAP, CHRONO_MS,
     emptyNotion, median, dayOf, status, stars, due, isDue, applyAnswer, diagLevel,
-    streak, longestStreak, withContent, statusOf, diagDone, domainProgress, badges,
+    favoriteStyle, preferredExplanation, streak, longestStreak, withContent, inScope, statusOf, diagDone, domainProgress, badges,
   };
 })();
