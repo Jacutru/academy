@@ -15,10 +15,12 @@
   let view = (() => { try { return localStorage.getItem(VIEW_KEY) === 'blocks' ? 'blocks' : 'list'; } catch (e) { return 'list'; } })();
   const saveView = v => { view = v; try { localStorage.setItem(VIEW_KEY, v); } catch (e) { /* private mode: just not remembered */ } };
 
+  // Same scope as the domain bars: only the lessons of the pupil's programme (target class and before).
   function chapterProgress(state, ch) {
-    const ns = P.withContent(ch.notions), total = ns.length * 3, got = ns.reduce((s, no) => s + UI.notionStars(state, no), 0);
+    const ns = P.inScope(state, ch.notions), total = ns.length * 3, got = ns.reduce((s, no) => s + UI.notionStars(state, no), 0);
     return { got, total, pct: total ? Math.round((100 * got) / total) : 0 };
   }
+  const starsText = p => (p.total ? `${p.got}/${p.total} ★` : 'hors de ton programme');
   const searchKey = no => norm(`${no.num} ${no.title} ${no.chapter.title}`);
 
   function chapterTile(state, ch) {
@@ -29,7 +31,7 @@
       <span class="tile-title">${ch.title}</span>
       <span class="tile-dots" aria-hidden="true">${items.map(([, st]) => UI.STATUS[st].icon).join('')}</span>
       ${UI.barHtml(p.pct)}
-      <small><span class="tile-count">${ch.notions.length}</span> leçon${ch.notions.length > 1 ? 's' : ''} · ${p.got}/${p.total} ★</small>
+      <small><span class="tile-count">${ch.notions.length}</span> leçon${ch.notions.length > 1 ? 's' : ''} · ${starsText(p)}</small>
     </a>`;
   }
 
@@ -136,7 +138,7 @@
     const prev = chapters[i - 1], next = chapters[i + 1];
     UI.render(`
       <div class="crumbs"><a href="#/sommaire">Sommaire</a> › ${ch.domain.icon} ${ch.domain.title}</div>
-      <div class="dom-head"><h1 style="margin:0">${ch.num} ${ch.title}</h1>${UI.barHtml(p.pct)}<span class="muted">${p.got}/${p.total} ★</span></div>
+      <div class="dom-head"><h1 style="margin:0">${ch.num} ${ch.title}</h1>${UI.barHtml(p.pct)}<span class="muted">${starsText(p)}</span></div>
       <div class="tiles" style="margin-top:16px">${ch.notions.map(no => notionTile(state, no)).join('')}</div>
       <div class="row" style="margin-top:20px">
         ${prev ? `<a class="btn" href="#/chapitre/${prev.id}">← ${prev.num} ${prev.title}</a>` : ''}
