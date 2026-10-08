@@ -166,15 +166,19 @@ const P = M.progress;
 const T0 = new Date(2026, 9, 8, 10, 0).getTime();
 const H = (oks, lvl = 3, ms = 2000) => oks.map((o, i) => ({ ok: !!o, ms, at: T0 + i * 1000, lvl }));
 eq(P.status(undefined), 'new', 'status new');
-eq(P.status({ level: 3, box: 0, hist: H([1, 1, 1, 1, 1, 1, 1, 1, 1, 1]) }), 'mastered', 'status mastered');
-eq(P.status({ level: 3, box: 0, hist: H([0, 1, 1, 1, 1, 1, 1, 1, 1, 1]) }), 'mastered', '9/10 still mastered');
-eq(P.status({ level: 3, box: 0, hist: H([0, 0, 1, 1, 1, 1, 1, 1, 1, 1]) }), 'fragile', '8/10 fragile');
-eq(P.status({ level: 2, box: 0, hist: H([1, 1, 1, 1, 1], 2) }), 'fragile', '100 % at level 2 is not mastered');
-eq(P.status({ level: 1, box: 0, hist: H([0, 0, 1, 0, 1], 1) }), 'weak', '40 % weak');
-eq(P.status({ level: 2, box: 0, hist: H([1, 0], 2) }), 'fragile', 'diagnostic 1 of 2 → fragile');
+eq(P.status({ level: 3, box: 0, hist: H([1, 1, 1, 1, 1, 1, 1, 1, 1, 1]) }), 'excellent', '10/10 at level 3 → excellent');
+eq(P.status({ level: 3, box: 0, hist: H([0, 1, 1, 1, 1, 1, 1, 1, 1, 1]) }), 'good', '9/10 → good (90 %+)');
+eq(P.status({ level: 3, box: 0, hist: H([0, 0, 1, 1, 1, 1, 1, 1, 1, 1]) }), 'average', '8/10 → average (80 %+)');
+eq(P.status({ level: 3, box: 0, hist: H([0, 0, 0, 1, 1, 1, 1, 1, 1, 1]) }), 'weak', '7/10 → weak');
+eq(P.status({ level: 2, box: 0, hist: H([1, 1, 1, 1, 1], 2) }), 'good', '100 % below level 3 is capped at good');
+eq(P.status({ level: 3, box: 0, hist: H([1, 1, 1, 1], 3) }), 'good', 'fewer than 5 answers is capped at good');
+eq(P.status({ level: 2, box: 0, hist: H([1, 0], 2) }), 'average', 'diagnostic 1 of 2 → average');
+eq(P.status({ level: 2, box: 0, hist: H([1, 1], 3) }), 'good', 'diagnostic 2 of 2 → good');
 eq(P.status({ level: 1, box: 0, hist: H([0, 0], 1) }), 'weak', 'diagnostic 0 of 2 → weak');
-eq(P.status({ level: 3, box: 0, hist: H([1, 1, 1, 1, 1], 3, 6000) }, { chrono: true }), 'fragile', 'chrono notion too slow → fragile');
-eq(P.status({ level: 3, box: 0, hist: H([1, 1, 1, 1, 1], 3, 2500) }, { chrono: true }), 'mastered', 'chrono notion fast → mastered');
+eq(P.status({ level: 1, box: 0, hist: H([1], 1) }), 'average', 'a single right answer is capped at average');
+eq(P.status({ level: 3, box: 0, hist: H([1, 1, 1, 1, 1], 3, 6000) }, { chrono: true }), 'good', 'chrono notion too slow → good, not excellent');
+eq(P.status({ level: 3, box: 0, hist: H([1, 1, 1, 1, 1], 3, 2500) }, { chrono: true }), 'excellent', 'chrono notion fast → excellent');
+eq([P.stars({ level: 3, box: 0, hist: H([0, 0, 1, 1, 1, 1, 1, 1, 1, 1]) }), P.stars({ level: 3, box: 0, hist: H([0, 1, 1, 1, 1, 1, 1, 1, 1, 1]) }), P.stars({ level: 3, box: 0, hist: H([1, 1, 1, 1, 1, 1, 1, 1, 1, 1]) })], [1, 2, 3], 'stars: average 1, good 2, excellent 3');
 // Level changes.
 let np;
 np = undefined; [1, 1, 1].forEach((o, i) => { np = P.applyAnswer(np, { ok: !!o, ms: 1000, at: T0 + i, lvl: np ? np.level : 1 }); });
@@ -186,14 +190,13 @@ eq(np.level, 2, 'level down after 2 mistakes');
 np = P.applyAnswer(undefined, { ok: true, ms: 1, at: T0, lvl: 2 }, { diag: true });
 eq(np.level, 1, 'diag answers do not move the level');
 eq([P.diagLevel(true, true), P.diagLevel(true, false), P.diagLevel(false, true), P.diagLevel(false, false)], [3, 2, 1, 1], 'diagLevel');
-// Spaced review: mastered today → box 0; reviewed correctly the next day → box 1 → 3 stars.
+// Spaced review: known today → box 0; reviewed correctly the next day → box 1.
 np = { level: 3, box: 0, hist: H([1, 1, 1, 1, 1, 1, 1, 1, 1, 1]) };
-eq(P.stars(np), 2, 'mastered, not reviewed yet → 2 stars');
+eq(P.stars(np), 3, 'excellent → 3 stars');
 eq(P.due(np), '2026-10-09', 'due next day');
 eq(P.isDue(np, undefined, '2026-10-08'), false, 'not due same day');
 np = P.applyAnswer(np, { ok: true, ms: 1000, at: new Date(2026, 9, 9, 9).getTime(), lvl: 3 });
 eq(np.box, 1, 'box 1 after successful review');
-eq(P.stars(np), 3, '3 stars after review');
 eq(P.due(np), '2026-10-12', 'next review in 3 days');
 np = P.applyAnswer(np, { ok: false, ms: 1000, at: new Date(2026, 9, 12, 9).getTime(), lvl: 3 });
 eq(np.box, 0, 'missed review → box 0');
@@ -268,7 +271,7 @@ while ((item = run.next()) && n < 200) {
 eq(n, P.inScope(St.read(), M.cat.domains.mesures.notions).length * 2, 'diag asks 2 questions per notion of the target');
 eq(P.diagDone(St.read(), M.cat.domains.mesures), true, 'diag part done');
 eq(St.read().notions['aires'].level, 3, 'diag sets level 3 after two right answers');
-eq(P.statusOf(St.read(), byId['aires']), 'mastered', 'diag perfect → mastered');
+eq(P.statusOf(St.read(), byId['aires']), 'good', 'diag perfect → good (2 answers cannot be excellent)');
 // Weak notion appears in the daily plan, with its weak prerequisite first.
 St.update(st => {
   st.notions['frac-somme'] = { level: 1, box: 0, hist: H([0, 0, 0], 1) };

@@ -129,12 +129,13 @@
       </div>${dataTable}` : '<p class="empty">Les graphiques apparaîtront dès les premières réponses.</p>'}
 
       <h2>Par notion</h2>
+      ${UI.legendHtml()}
       ${stats.length ? M.cat.tree.map(d => {
         const rows = stats.filter(s => s.no.domain === d);
         if (!rows.length) return '';
         return `<div class="card" style="margin-bottom:12px"><h3>${d.icon} ${d.title}</h3><div style="overflow-x:auto"><table class="data">
           <thead><tr><th>Notion</th><th>Statut</th><th>Niv.</th><th class="n">Réponses</th><th class="n">Réussite</th><th>Tendance</th><th class="n">Temps médian</th><th>Dernière fois</th></tr></thead><tbody>
-          ${rows.map(s => `<tr><td><a href="#/lecon/${s.no.id}">${s.no.num} ${s.no.title}</a></td><td>${UI.statusHtml(UI.notionStatus(state, s.no))} ${UI.starsHtml(UI.notionStars(state, s.no))}</td>
+          ${rows.map(s => `<tr><td><a href="#/lecon/${s.no.id}">${s.no.num} ${s.no.title}</a></td><td>${UI.notionStatusHtml(state, s.no)} ${UI.starsHtml(UI.notionStars(state, s.no))}</td>
             <td class="n">${state.notions[s.no.id] ? state.notions[s.no.id].level : 1}</td><td class="n">${s.n}</td><td class="n">${s.rate} %</td><td>${trend(s)}</td>
             <td class="n">${s.time === null ? '—' : fmt(Math.round(s.time * 10) / 10) + ' s'}</td><td>${ago(s.lastAt)}</td></tr>`).join('')}
           </tbody></table></div><small>Tendance : réussite des 10 dernières réponses comparée aux 10 précédentes.</small></div>`;

@@ -57,6 +57,7 @@
         N('divisibilite', 'Critères de divisibilité par 2, 5 et 10', { niveau: 'CM2', prereq: ['multiples'] }),
         N('divisibilite-3-9', 'Critères de divisibilité par 3 et 9', { niveau: '5e', prereq: ['divisibilite'] }),
         N('divisibilite-4', 'Critère de divisibilité par 4', { niveau: '+', prereq: ['divisibilite', 'divisibilite-3-9'] }),
+        N('criteres-autres', 'Autres critères : 6, 8, 11, 25', { niveau: '+', prereq: ['divisibilite-3-9', 'divisibilite-4'] }),
         N('nombres-premiers', 'Nombres premiers', { niveau: '+', prereq: ['divisibilite-3-9'] }),
         N('pgcd', 'Diviseurs communs et PGCD', { niveau: '+', prereq: ['multiples'] }),
         N('ppcm', 'Multiples communs et PPCM', { niveau: '+', prereq: ['multiples'] }),
@@ -73,6 +74,7 @@
         N('factoriser', 'Distributivité : factoriser', { niveau: '5e', prereq: ['distributivite'] }),
         N('puissances', 'Carrés, cubes et puissances', { niveau: '5e', prereq: ['tables-mult', 'priorites'] }),
         N('calcul-litteral', 'Calcul littéral : formules et expressions', { niveau: '5e', negatives: true, prereq: ['priorites', 'distributivite'] }),
+        N('identites-remarquables', 'Identités remarquables', { niveau: '3e', prereq: ['distributivite', 'puissances', 'calcul-litteral'] }),
         N('equations', 'Résoudre une équation simple', { niveau: '5e', negatives: true, prereq: ['calcul-litteral'] }),
       ] },
       { id: 'proportionnalite', title: 'Proportionnalité', notions: [

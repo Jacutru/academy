@@ -17,10 +17,10 @@
       case 'division':
         return `<div class="answer-row"><label>Quotient <input type="text" id="in" class="short" autocomplete="off" inputmode="numeric"></label><label>Reste <input type="text" id="in2" class="short" autocomplete="off" inputmode="numeric"></label><button class="btn primary" data-act="ok">Valider <kbd>Entrée</kbd></button></div>`;
       case 'choice':
-        return `<div class="choices">${a.options.map((o, i) => `<button class="choice" data-i="${i}"><kbd>${i + 1}</kbd> ${o}</button>`).join('')}</div>`;
+        return `<div class="choices">${a.options.map((o, i) => `<button class="choice" data-i="${i}"><kbd>${i + 1}</kbd><span>${o}</span></button>`).join('')}</div>`;
       case 'order':
         return `<div class="order-seq" id="seq" aria-live="polite"><span class="muted">Clique sur les nombres dans l’ordre…</span></div>
-          <div class="choices">${a.items.map((o, i) => `<button class="choice" data-o="${i}"><kbd>${i + 1}</kbd> ${o}</button>`).join('')}</div>
+          <div class="choices">${a.items.map((o, i) => `<button class="choice" data-o="${i}"><kbd>${i + 1}</kbd><span>${o}</span></button>`).join('')}</div>
           <div class="row" style="margin-top:10px"><button class="btn small" data-act="undo">↶ Effacer <kbd>⌫</kbd></button></div>`;
     }
   }

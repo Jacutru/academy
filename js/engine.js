@@ -59,12 +59,12 @@
       summary() {
         const state = M.store.read();
         const notions = [...run.touched].map(id => ({ id, no: byId[id], before: run.startStatuses[id], after: P.statusOf(state, byId[id]) }));
-        const rank = { new: 0, weak: 1, fragile: 2, mastered: 3 };
+        const rank = P.RANK;
         const nowBadges = P.badges(state).filter(b => b.earned && !run.startBadges.includes(b.id));
         return {
           answered: run.firstAnswered, correct: run.firstCorrect,
           improved: notions.filter(n => rank[n.after] > rank[n.before] && n.after !== 'weak'),
-          toReview: notions.filter(n => n.after === 'weak' || n.after === 'fragile'),
+          toReview: notions.filter(n => n.after === 'weak' || n.after === 'average'),
           newBadges: nowBadges,
         };
       },
@@ -76,12 +76,12 @@
   const free = id => makeRun('free', byId[id].title, [], { infinite: true, refill: () => ({ id }) });
 
   // ---------- Daily session ----------
-  // ~70 % weak/fragile notions (🔴 first, prerequisites first), ~30 % due reviews; new notions fill gaps.
+  // ~70 % weak/average notions (🔴 first, prerequisites first), ~30 % due reviews; new notions fill gaps.
   function planDaily(state, n = DAILY_SIZE, td = today()) {
     const ns = playable();
     const st = no => P.statusOf(state, no);
     const practised = ns.filter(no => st(no) !== 'new');
-    const rank = { weak: 0, fragile: 1 };
+    const rank = { weak: 0, average: 1 };
     let weak = practised.filter(no => st(no) in rank).sort((a, b) => rank[st(a)] - rank[st(b)] || a.index - b.index);
     // Put weak prerequisites before the notions that depend on them.
     const ordered = [], seen = new Set(), weakIds = new Set(weak.map(w => w.id));
@@ -98,7 +98,7 @@
     const items = [];
     for (let i = 0; items.length < n - reviewSlots && main.length && i < 100; i++) items.push({ id: main[i % main.length].id });
     const reviews = dueList.slice(0, reviewSlots).map(no => ({ id: no.id }));
-    // Still short (nothing weak, nothing new)? Top up with random mastered notions.
+    // Still short (nothing weak, nothing new)? Top up with random practised notions.
     const pool = practised.length ? practised : ns;
     while (items.length + reviews.length < n) items.push({ id: pool[Math.floor(Math.random() * pool.length)].id });
     // Interleave reviews among the main items.
@@ -144,7 +144,7 @@
     if (dom) return { kind: 'diag', domain: dom };
     const doneToday = state.log.some(e => e[5] === 'session' && P.dayOf(e[0]) === td);
     const ns = playable();
-    const pending = ns.some(no => ['weak', 'fragile'].includes(P.statusOf(state, no)) || P.isDue(state.notions[no.id], no, td));
+    const pending = ns.some(no => ['weak', 'average'].includes(P.statusOf(state, no)) || P.isDue(state.notions[no.id], no, td));
     if (pending && !doneToday) return { kind: 'daily' };
     return { kind: doneToday ? 'doneToday' : 'upToDate' };
   }

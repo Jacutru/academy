@@ -8,7 +8,7 @@
   const INTERVALS = [1, 3, 7, 21, 60];   // spaced-review boxes, in days
   const WINDOW = 10;                      // answers used for the status
   const HIST_CAP = 30;
-  const CHRONO_MS = 4000;                 // median time required for "mastered" on chrono notions
+  const CHRONO_MS = 4000;                 // median time required for "excellent" on chrono notions
 
   const emptyNotion = () => ({ level: 1, hist: [], box: 0 });
   const median = arr => {
@@ -18,31 +18,43 @@
   };
   const dayOf = at => today(new Date(at));
 
-  // 'new' | 'weak' (🔴) | 'fragile' (🟡) | 'mastered' (✅)
-  function status(np, meta) {
-    if (!np || !np.hist.length) return 'new';
+  // Rating spans on the success rate of the last WINDOW answers.
+  const SPANS = { excellent: 0.98, good: 0.9, average: 0.8 };
+  const EXCELLENT_MIN_ANSWERS = 5;
+  const RANK = { new: 0, weak: 1, average: 2, good: 3, excellent: 4 };
+  const atLeast = (s, min) => RANK[s] >= RANK[min];
+
+  // Success rate (0–1) of the last WINDOW answers, or null with no answer.
+  function successRate(np) {
+    if (!np || !np.hist.length) return null;
     const w = np.hist.slice(-WINDOW);
-    const rate = w.filter(h => h.ok).length / w.length;
-    // Fewer than 3 answers (typically the diagnostic): one right answer is enough for "fragile".
-    if (w.length < 3 && rate > 0 && rate < 1) return 'fragile';
-    if (rate >= 0.9 && w[w.length - 1].lvl === 3) {
-      if (!(meta && meta.chrono) || median(w.filter(h => h.ok && h.ms > 0).map(h => h.ms)) <= CHRONO_MS) return 'mastered';
-      return 'fragile';
-    }
-    return rate >= 0.6 ? 'fragile' : 'weak';
+    return w.filter(h => h.ok).length / w.length;
   }
 
-  function stars(np, meta) {
-    const s = status(np, meta);
-    if (s === 'mastered') return np.box >= 1 ? 3 : 2;
-    return s === 'fragile' ? 1 : 0;
+  // 'new' | 'weak' (< 80 %) | 'average' (80 %+) | 'good' (90 %+) | 'excellent' (98 %+)
+  function status(np, meta) {
+    const rate = successRate(np);
+    if (rate === null) return 'new';
+    const w = np.hist.slice(-WINDOW);
+    // Fewer than 3 answers (typically the diagnostic): 2 right → good, one right → average.
+    if (w.length < 3) return rate === 1 && w.length === 2 ? 'good' : rate > 0 ? 'average' : 'weak';
+    if (rate >= SPANS.excellent) {
+      // Excellent also needs enough answers, the hardest level and, for mental maths, speed.
+      const fast = !(meta && meta.chrono) || median(w.filter(h => h.ok && h.ms > 0).map(h => h.ms)) <= CHRONO_MS;
+      return w.length >= EXCELLENT_MIN_ANSWERS && w[w.length - 1].lvl === 3 && fast ? 'excellent' : 'good';
+    }
+    return rate >= SPANS.good ? 'good' : rate >= SPANS.average ? 'average' : 'weak';
   }
+
+  // ★ average, ★★ good, ★★★ excellent.
+  const stars = (np, meta) => Math.max(0, RANK[status(np, meta)] - 1);
 
   function due(np) {
     if (!np || !np.hist.length) return null;
     return addDays(dayOf(np.hist[np.hist.length - 1].at), INTERVALS[np.box]);
   }
-  const isDue = (np, meta, td = today()) => status(np, meta) === 'mastered' && due(np) <= td;
+  // Spaced review applies once a notion is known (good or excellent).
+  const isDue = (np, meta, td = today()) => atLeast(status(np, meta), 'good') && due(np) <= td;
 
   // Returns a new notion record after one (first-try) answer.
   function applyAnswer(np0, { ok, ms, at, lvl }, { meta, diag = false } = {}) {
@@ -51,7 +63,7 @@
     np.hist.push({ ok, ms, at, lvl });
     if (np.hist.length > HIST_CAP) np.hist.splice(0, np.hist.length - HIST_CAP);
     if (wasDueReview) np.box = ok ? Math.min(INTERVALS.length - 1, np.box + 1) : 0;
-    if (status(np, meta) !== 'mastered') np.box = 0;
+    if (!atLeast(status(np, meta), 'good')) np.box = 0;
     if (!diag) {
       const atLevel = [];
       for (let i = np.hist.length - 1; i >= 0 && np.hist[i].lvl === np.level; i--) atLevel.push(np.hist[i]);
@@ -89,7 +101,8 @@
     return { stars: got, total, pct: total ? Math.round((100 * got) / total) : 0 };
   }
 
-  const allMastered = (state, ids) => ids.every(id => statusOf(state, M.cat.byId[id]) === 'mastered');
+  // Badges reward real mastery: excellent (98 %+, level 3, enough answers).
+  const allMastered = (state, ids) => ids.every(id => statusOf(state, M.cat.byId[id]) === 'excellent');
   const chapterIds = chId => M.cat.list.filter(n => n.chapter.id === chId).map(n => n.id);
   const BADGES = [
     { id: 'tables', icon: '✖️', title: 'Toutes les tables', desc: 'Maîtriser les tables de multiplication et de division.', test: s => allMastered(s, ['tables-mult', 'tables-div']) },
@@ -116,6 +129,7 @@
   }
 
   M.progress = {
+    SPANS, RANK, atLeast, successRate,
     INTERVALS, WINDOW, HIST_CAP, CHRONO_MS,
     emptyNotion, median, dayOf, status, stars, due, isDue, applyAnswer, diagLevel,
     favoriteStyle, preferredExplanation, streak, longestStreak, withContent, inScope, statusOf, diagDone, domainProgress, badges,

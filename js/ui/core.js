@@ -68,11 +68,18 @@
   const announce = text => { const l = document.getElementById('live'); l.textContent = ''; setTimeout(() => { l.textContent = text; }, 30); };
   const STATUS = {
     new: { icon: '⚪', label: 'Pas encore évalué' },
-    weak: { icon: '🔴', label: 'À revoir' },
-    fragile: { icon: '🟡', label: 'Fragile' },
-    mastered: { icon: '✅', label: 'Acquis' },
+    weak: { icon: '🔴', label: 'À revoir', span: 'moins de 80 %' },
+    average: { icon: '🟠', label: 'Moyen', span: '80 % et plus' },
+    good: { icon: '🟢', label: 'Bien', span: '90 % et plus' },
+    excellent: { icon: '🌟', label: 'Excellent', span: '98 % et plus' },
   };
-  const statusHtml = s => `<span class="status" title="${STATUS[s].label}">${STATUS[s].icon} ${STATUS[s].label}</span>`;
+  // Coloured pill (icon + label, never colour alone), with the success rate when known.
+  function statusHtml(s, rate) {
+    const pct = rate === null || rate === undefined || rate.n < 3 ? '' : ` · ${Math.round(rate.value * 100)} %`;   // a rate on 1–2 answers would contradict the spans
+    return `<span class="status st-${s}" title="${STATUS[s].label}${STATUS[s].span ? ` : ${STATUS[s].span} de réussite sur les 10 dernières réponses` : ''}">${STATUS[s].icon} ${STATUS[s].label}${pct}</span>`;
+  }
+  const notionStatusHtml = (state, no, st = P.statusOf(state, no)) => { const np = state.notions[no.id]; return statusHtml(st, np && np.hist.length ? { value: P.successRate(np), n: Math.min(np.hist.length, P.WINDOW) } : null); };
+  const legendHtml = () => `<p class="legend">${['weak', 'average', 'good', 'excellent'].map(s => `<span class="status st-${s}">${STATUS[s].icon} ${STATUS[s].label} : ${STATUS[s].span}</span>`).join(' ')} <small>(sur les 10 dernières réponses ; « Excellent » demande aussi le niveau 3 et au moins 5 réponses)</small></p>`;
   const starsHtml = n => `<span class="stars" aria-label="${n} étoile${n > 1 ? 's' : ''} sur 3">${'★'.repeat(n)}<span class="off">${'★'.repeat(3 - n)}</span></span>`;
   const barHtml = pct => `<div class="bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><span style="width:${pct}%"></span></div>`;
   function download(filename, text, mime) {
@@ -91,5 +98,5 @@
   const targetLabel = state => `${state.target.classe} · ${M.programmes.byId(state.target.version).label}`;
   const notionStars = (state, no) => P.stars(state.notions[no.id], no);
 
-  M.ui = { route, navigate, render, onLeave, onKey, openModal, closeModal, esc, announce, STATUS, statusHtml, starsHtml, barHtml, download, notionStatus, notionStars, levelTag, targetLabel };
+  M.ui = { route, navigate, render, onLeave, onKey, openModal, closeModal, esc, announce, STATUS, statusHtml, starsHtml, barHtml, download, notionStatus, notionStatusHtml, legendHtml, notionStars, levelTag, targetLabel };
 })();

@@ -33,7 +33,7 @@
   // Notions to master for a target: its class and every earlier one.
   const inScope = (target, notionId) => ['avant', 'cible'].includes(relation(target, notionId));
   const DEFAULT = { version: '2025', classe: '6e' };
-  const targetClasses = ['6e', '5e'];
+  const targetClasses = ['6e', '5e', '4e', '3e'];
 
   M.programmes = { CLASSES, HORS, versions, add, byId, levelIn, relation, inScope, DEFAULT, targetClasses };
 })();

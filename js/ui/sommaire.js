@@ -6,7 +6,7 @@
   const P = M.progress, UI = M.ui;
   const { norm } = M.u;
 
-  let query = '', filter = 'all', scope = 'all';   // kept while the app is open
+  let query = '', filter = 'all', scope = 'mine';   // kept while the app is open
   const SCOPES = [['all', 'Toutes'], ['mine', '🎯 Mon programme'], ['apres', '⏭️ Classes suivantes'], ['hors', '➕ Pour aller plus loin']];
   const relOf = (state, no) => M.programmes.relation(state.target, no.id);
   const scopeOk = rel => scope === 'all' || (scope === 'mine' ? rel === 'avant' || rel === 'cible' : rel === scope);
@@ -36,12 +36,11 @@
   }
 
   function notionTile(state, no) {
-    const st = UI.notionStatus(state, no);
     return `<div class="tile notion-tile">
       <span class="tile-num">${no.num}</span>
       <a class="tile-title" href="#/lecon/${no.id}">${no.title}</a>
       <span>${UI.levelTag(state, no)} ${UI.starsHtml(UI.notionStars(state, no))}</span>
-      ${UI.statusHtml(st)}
+      ${UI.notionStatusHtml(state, no)}
       <span class="acts">
         <a class="btn small" href="#/lecon/${no.id}">📖 Leçon</a>
         <a class="btn small primary" href="#/exercice/${no.id}">✏️ S’entraîner</a>
@@ -49,7 +48,7 @@
       </span>
     </div>`;
   }
-  const FILTERS = [['all', 'Toutes'], ['weak', '🔴 À revoir'], ['fragile', '🟡 Fragiles'], ['mastered', '✅ Acquises'], ['new', '⚪ Non évaluées']];
+  const FILTERS = [['all', 'Toutes'], ['weak', '🔴 À revoir'], ['average', '🟠 Moyen'], ['good', '🟢 Bien'], ['excellent', '🌟 Excellent'], ['new', '⚪ Non évaluées']];
 
   function notionRow(state, no) {
     const st = UI.notionStatus(state, no);
@@ -57,7 +56,7 @@
       <span class="num">${no.num}</span>
       <span class="title"><a href="#/lecon/${no.id}">${no.title}</a> ${UI.levelTag(state, no)}</span>
       ${UI.starsHtml(UI.notionStars(state, no))}
-      ${UI.statusHtml(st)}
+      ${UI.notionStatusHtml(state, no, st)}
       <span class="acts">
         <a class="btn small" href="#/lecon/${no.id}">📖 Leçon</a>
         <a class="btn small primary" href="#/exercice/${no.id}">✏️ S’entraîner</a>
@@ -70,7 +69,11 @@
     const state = M.store.read();
     UI.render(`
       <h1>📚 Sommaire</h1>
-      <p class="muted">Objectif : <b>${UI.esc(UI.targetLabel(state))}</b> (<a href="#/bilan">changer</a>). Clique sur une notion pour lire la leçon, ou entraîne-toi directement.</p>
+      <form id="target" class="row target-bar" aria-label="Classe et programme de référence">
+        <label>Je suis en <select id="t-classe" class="text-input">${M.programmes.targetClasses.map(c => `<option ${c === state.target.classe ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
+        <label>Programme de référence <select id="t-version" class="text-input">${M.programmes.versions.map(v => `<option value="${v.id}" ${v.id === state.target.version ? 'selected' : ''}>${UI.esc(v.label)}</option>`).join('')}</select></label>
+      </form>
+      <p class="muted">« Mon programme » montre les leçons à connaître en ${state.target.classe} et avant, selon ce programme. Clique sur une notion pour lire la leçon, ou entraîne-toi directement.</p>
       <div class="toolbar">${SCOPES.map(([k, l]) => `<button class="chip" data-s="${k}" aria-pressed="${scope === k}">${l}</button>`).join('')}</div>
       <div class="toolbar">
         <input type="search" id="q" placeholder="Rechercher une notion (ex : fraction, aire, virgule…)" value="${UI.esc(query)}" aria-label="Rechercher une notion">
@@ -81,6 +84,7 @@
           <button class="chip" data-view="blocks" aria-pressed="${view === 'blocks'}">▦ Blocs</button>
         </span>
       </div>
+      ${UI.legendHtml()}
       <div id="tree">
         ${M.cat.tree.map(d => {
           const p = P.domainProgress(state, d);
@@ -110,6 +114,11 @@
       document.querySelectorAll('.dom').forEach(d => { d.hidden = ![...d.querySelectorAll('.notion-row, .tile[data-items]')].some(r => !r.hidden); });
       document.getElementById('none').hidden = any;
     };
+    // Class / reference year: same setting as the Objectif on the Progrès page.
+    document.querySelectorAll('#t-classe, #t-version').forEach(sel => sel.addEventListener('change', () => {
+      M.store.setTarget(document.getElementById('t-version').value, document.getElementById('t-classe').value);
+      UI.navigate();
+    }));
     const input = document.getElementById('q');
     input.addEventListener('input', () => { query = input.value; apply(); });
     document.querySelectorAll('[data-f]').forEach(b => b.addEventListener('click', () => {
