@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Maths 6ème</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧮</text></svg>">
+  <meta name="theme-color" content="#2a78d6">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Maths 6e">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a href="#/" class="brand">🧮 Maths 6ème</a>
+    <nav>
+      <a href="#/sommaire" data-nav="sommaire">📚 Sommaire</a>
+      <a href="#/bilan" data-nav="bilan">📈 Progrès</a>
+    </nav>
+  </header>
+  <div id="banner" class="banner" hidden></div>
+  <main id="app" tabindex="-1"></main>
+  <div id="live" class="sr-only" aria-live="polite"></div>
+  <dialog id="modal"><div class="modal-body"></div><button class="modal-close" aria-label="Fermer">✕</button></dialog>
+
+  <!-- The ONLY list of scripts: tests/run.js reads it from here. Order matters. -->
+  <script src="js/util.js"></script>
+  <script src="js/math-html.js"></script>
+  <script src="js/svg.js"></script>
+  <script src="js/answer.js"></script>
+  <script src="js/sommaire.js"></script>
+  <script src="js/notions/kit.js"></script>
+  <script src="js/notions/nombres.js"></script>
+  <script src="js/notions/calcul.js"></script>
+  <script src="js/notions/fractions.js"></script>
+  <script src="js/notions/proportionnalite.js"></script>
+  <script src="js/notions/mesures.js"></script>
+  <script src="js/notions/geometrie.js"></script>
+  <script src="js/progress.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/ui/core.js"></script>
+  <script src="js/ui/home.js"></script>
+  <script src="js/ui/sommaire.js"></script>
+  <script src="js/ui/lesson.js"></script>
+  <script src="js/ui/exercise.js"></script>
+  <script src="js/ui/bilan.js"></script>
+  <script src="js/ui/boot.js"></script>
+</body>
+</html>

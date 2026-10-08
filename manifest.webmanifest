@@ -1,0 +1,15 @@
+{
+  "name": "Maths 6ème",
+  "short_name": "Maths 6e",
+  "description": "Leçons et exercices pour maîtriser le programme de maths de 6ème.",
+  "lang": "fr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f5f1",
+  "theme_color": "#2a78d6",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
