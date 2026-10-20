@@ -77,6 +77,14 @@ kbd { font: inherit; font-size: .75em; border: 1px solid var(--border); border-b
 .topbar nav { display: flex; gap: 6px; }
 .topbar nav a { text-decoration: none; color: var(--text-2); padding: 6px 12px; border-radius: 999px; }
 .topbar nav a:hover, .topbar nav a.active { background: var(--accent-soft); color: var(--accent-ink); }
+/* Subject switcher; each subject has its own accent (set on <body data-subject>). */
+.subjects { display: flex; gap: 6px; margin-right: auto; }
+.subjects .chip { padding: 4px 10px; }
+body[data-subject="physique"] { --accent: #0d7f74; --accent-ink: #0a6158; --accent-soft: #d3efeb; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) body[data-subject="physique"] { --accent: #23998b; --accent-ink: #7fd8cd; --accent-soft: #12352f; }
+}
+:root[data-theme="dark"] body[data-subject="physique"] { --accent: #23998b; --accent-ink: #7fd8cd; --accent-soft: #12352f; }
 .banner { background: var(--warn-soft); color: var(--text); padding: 8px 20px; text-align: center; font-size: .9rem; }
 
 /* ---------- Generic UI ---------- */
@@ -260,6 +268,7 @@ dialog#modal::backdrop { background: rgb(0 0 0 / .45); }
 .modal-close { position: absolute; top: 10px; right: 12px; border: none; background: transparent; font-size: 1.2rem; cursor: pointer; color: var(--text-2); }
 
 @media (max-width: 640px) {
+  .subjects .label { display: none; }
   html { font-size: 16px; }
   .notion-row { grid-template-columns: 2.6em 1fr; }
   .notion-row .acts { grid-column: 1 / -1; justify-content: flex-start; }

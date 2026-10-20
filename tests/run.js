@@ -110,7 +110,19 @@ const dfs = (id, trail) => {
   stateOf[id] = 1; byId[id].prereq.forEach(p => byId[p] && dfs(p, [...trail, id])); stateOf[id] = 2;
 };
 list.forEach(no => dfs(no.id, []));
-console.log(`  ${list.length} notions in ${M.cat.tree.length} domains`);
+// Subjects: ids carry the subject prefix, numbering restarts per subject, subjectOf finds every kind of id.
+M.cat.subjects.forEach(subj => {
+  subj.tree.forEach(d => {
+    ok(d.id.startsWith(subj.prefix) && d.subject === subj, `${d.id}: domain of ${subj.id}`);
+    d.chapters.forEach(ch => ok(ch.id.startsWith(subj.prefix) && M.cat.subjectOf(ch.id) === subj, `${ch.id}: chapter of ${subj.id}`));
+  });
+  M.cat.listOf(subj.id).forEach(no => ok(no.id.startsWith(subj.prefix) && M.cat.subjectOf(no.id) === subj, `${no.id}: notion of ${subj.id}`));
+  eq(M.cat.listOf(subj.id)[0].num, '1.1.1', `${subj.id}: numbering starts at 1.1.1`);
+  ok(subj.title && subj.icon && subj.chronoTitle && subj.searchHint, `${subj.id}: subject settings`);
+});
+eq(M.cat.subjectOf('pc-matiere').id, 'physique', 'subjectOf(domain)');
+eq(M.cat.subjectOf('nope'), null, 'subjectOf(unknown)');
+console.log(`  ${list.length} notions in ${M.cat.tree.length} domains, ${M.cat.subjects.length} subjects`);
 
 // ------------------------------------------------------------------ generators
 section(`generators (${SAMPLES} samples × level)`);
@@ -218,8 +230,8 @@ let s = St.read();
 eq(s.notions['tables-mult'].hist.length, 2, 'answers recorded');
 eq(s.log.length, 2, 'log appended');
 eq(s.days, ['2026-10-08'], 'active day recorded');
-eq(St.setChronoBest('mix', 12), true, 'chrono record');
-eq(St.setChronoBest('mix', 10), false, 'not a record');
+eq(St.setChronoBest('mix:maths', 12), true, 'chrono record');
+eq(St.setChronoBest('mix:maths', 10), false, 'not a record');
 const dump = St.exportJSON();
 St.reset();
 eq(St.read().log.length, 0, 'reset');
@@ -227,20 +239,40 @@ St.importJSON(dump);
 eq(St.read().log.length, 2, 'import restores');
 let threw = false; try { St.importJSON('{"foo":1}'); } catch (e) { threw = true; } eq(threw, true, 'import rejects foreign JSON');
 const csv = St.exportCSV();
-ok(csv.startsWith('\ufeffeleve;date;heure;notion'), 'CSV header');
+ok(csv.startsWith('\ufeffeleve;date;heure;matiere;notion'), 'CSV header');
 eq(csv.trim().split('\r\n').length, 3, 'CSV rows');
 const mig = St.migrate({ notions: { x: { level: 9, box: 7, hist: [{ ok: true, at: 1, ms: 1, lvl: 1 }, { bad: 1 }] } }, days: ['bad', '2026-01-01'] });
-eq([mig.v, mig.notions.x.level, mig.notions.x.box, mig.notions.x.hist.length, mig.days], [1, 3, 4, 1, ['2026-01-01']], 'migrate sanitises');
-eq(St.migrate(null).v, 1, 'migrate(null)');
+eq([mig.v, mig.notions.x.level, mig.notions.x.box, mig.notions.x.hist.length, mig.days], [2, 3, 4, 1, ['2026-01-01']], 'migrate sanitises');
+eq(St.migrate(null).v, 2, 'migrate(null)');
 eq(St.migrate({ notions: {}, target: { version: '1999', classe: 'CP' } }).target, M.programmes.DEFAULT, 'unknown target falls back to default');
-eq(M.programmes.relation({ version: '2025', classe: '6e' }, 'priorites'), 'apres', 'priorités are after 6e in 2025');
-eq(M.programmes.relation({ version: '2025', classe: '5e' }, 'priorites'), 'cible', 'priorités are 5e in 2025');
-eq(M.programmes.relation({ version: '2025', classe: '5e' }, 'tables-mult'), 'avant', 'tables come before 5e');
-eq(M.programmes.relation({ version: '2025', classe: '6e' }, 'pgcd'), 'hors', 'PGCD outside the 2025 programmes');
-// Every programme version maps every notion to a known class.
-M.programmes.versions.forEach(v => list.forEach(no => ok(M.programmes.CLASSES.includes(v.levels[no.id]) || v.levels[no.id] === 'hors', `${v.id}: bad level for ${no.id}: ${v.levels[no.id]}`)));
-eq(M.programmes.relation({ version: '2008', classe: '6e' }, 'pgcd'), 'apres', 'PGCD was taught later (3e) in 2008');
-eq(M.programmes.relation({ version: '2018', classe: '6e' }, 'priorites'), 'cible', 'priorités were 6e in 2018');
+const tg = (classe, versions = {}) => ({ classe, versions: { ...M.programmes.DEFAULT.versions, ...versions } });
+eq(M.programmes.relation(tg('6e'), 'priorites'), 'apres', 'priorités are after 6e in 2025');
+eq(M.programmes.relation(tg('5e'), 'priorites'), 'cible', 'priorités are 5e in 2025');
+eq(M.programmes.relation(tg('5e'), 'tables-mult'), 'avant', 'tables come before 5e');
+eq(M.programmes.relation(tg('6e'), 'pgcd'), 'hors', 'PGCD outside the 2025 programmes');
+// Every programme version belongs to a subject and maps every notion of that subject (and only those).
+M.programmes.versions.forEach(v => {
+  ok(M.cat.subjectById(v.subject), `${v.id}: unknown subject ${v.subject}`);
+  M.cat.listOf(v.subject).forEach(no => ok(M.programmes.CLASSES.includes(v.levels[no.id]) || v.levels[no.id] === 'hors', `${v.id}: bad level for ${no.id}: ${v.levels[no.id]}`));
+  Object.keys(v.levels).forEach(id => ok(byId[id] && byId[id].subject.id === v.subject, `${v.id}: level for a notion of another subject: ${id}`));
+});
+M.cat.subjects.forEach(s => ok(M.programmes.versionsOf(s.id).length && M.programmes.DEFAULT.versions[s.id] === M.programmes.versionsOf(s.id)[0].id, `${s.id}: default version`));
+eq(M.programmes.relation(tg('6e', { maths: '2008' }), 'pgcd'), 'apres', 'PGCD was taught later (3e) in 2008');
+eq(M.programmes.relation(tg('6e', { maths: '2018' }), 'priorites'), 'cible', 'priorités were 6e in 2018');
+// Physique: the version is chosen per subject; the CSP draft moves notions.
+eq(M.programmes.relation(tg('5e'), 'pc-pression'), 'hors', 'pression outside the programme in force');
+eq(M.programmes.relation(tg('5e', { physique: 'pc-projet-2025' }), 'pc-pression'), 'cible', 'pression is 5e in the draft');
+eq(M.programmes.relation(tg('5e'), 'pc-solubilite'), 'cible', 'solubilité in 5e (in force)');
+eq(M.programmes.relation(tg('5e', { physique: 'pc-projet-2025' }), 'pc-solubilite'), 'apres', 'solubilité moved to 4e in the draft');
+eq(M.programmes.relation(tg('5e', { maths: '2008' }), 'pc-solubilite'), 'cible', 'a maths version never changes physique');
+eq(M.programmes.relation(tg('5e'), 'pc-etats-proprietes'), 'avant', 'cycle 3 basics come before 5e');
+// Old (v1) saves: a single maths version, a global chrono record, no subject.
+const v1 = St.migrate({ v: 1, notions: {}, target: { version: '2008', classe: '5e' }, chronoBest: { mix: 21, 'tables-mult': 30 } });
+eq(v1.target, { classe: '5e', versions: { maths: '2008', physique: 'pc-2020' } }, 'v1 target → per-subject versions');
+eq(v1.chronoBest, { 'tables-mult': 30, 'mix:maths': 21 }, 'v1 mixed chrono record → maths');
+eq(v1.subject, 'maths', 'v1 save → maths subject');
+eq(St.migrate({ notions: {}, subject: 'latin', target: { classe: '5e', versions: { physique: 'nope' } } }).target.versions.physique, 'pc-2020', 'unknown physique version → default');
+eq(St.migrate({ notions: {}, subject: 'latin' }).subject, 'maths', 'unknown subject → first subject');
 eq(St.migrate({ notions: {} }).name, '', 'old saves get an empty name');
 St.setName('  Léa   Marie  ');
 eq(St.read().name, 'Léa Marie', 'name trimmed');
@@ -293,6 +325,37 @@ const first = fr.next(); fr.done(first, false);
 const nexts = [fr.next(), fr.next(), fr.next(), fr.next(), fr.next()];
 ok(nexts.slice(0, 2).every(x => !x.retry), 'retry not immediate');
 ok(nexts.some(x => x.retry && x.q.key === first.q.key), 'missed question comes back');
+
+// Subjects: sessions, chrono and the starting bilan never mix subjects.
+section('subjects');
+St.reset();
+eq(St.subject(), 'maths', 'first subject by default');
+M.cat.treeOf('maths').forEach(d => St.update(st => { P.inScope(st, d.notions).forEach(no => { st.notions[no.id] = { level: 2, box: 0, hist: H([1, 1], 2) }; }); }));
+eq(E.nextStep().kind === 'diag', false, 'maths bilan done');
+St.setSubject('physique');
+eq(St.subject(), 'physique', 'subject switched');
+eq(St.read().subject, 'physique', 'last subject saved for new tabs');
+let stepPc = E.nextStep();
+eq([stepPc.kind, stepPc.domain && stepPc.domain.subject.id], ['diag', 'physique'], 'physique bilan asked even though maths is done');
+ok(E.planDaily(St.read()).every(p => byId[p.id].subject.id === 'physique'), 'physique daily plan has physique notions only');
+ok(E.chronoNotions().length && E.chronoNotions().every(no => no.subject.id === 'physique'), 'physique chrono notions');
+const pcRun = E.chrono();
+eq(pcRun.opts.chronoKey, 'mix:physique', 'chrono record per subject');
+// A weak maths prerequisite stays in maths.
+St.update(st => { st.notions['prop-tableau'] = { level: 1, box: 0, hist: H([0, 0, 0], 1) }; });
+ok(!E.planDaily(St.read()).some(p => p.id === 'prop-tableau'), 'weak maths prerequisite not in the physique plan');
+St.setSubject('maths');
+ok(E.planDaily(St.read()).some(p => p.id === 'prop-tableau'), '…but in the maths plan');
+eq(E.nextStep().kind === 'diag', false, 'physique bilan does not block maths');
+const writes = St.read().log.length; St.setSubject('maths'); eq(St.read().log.length, writes, 'setSubject unchanged is harmless');
+St.setTarget('physique', 'pc-projet-2025', '5e');
+eq(St.read().target, { classe: '5e', versions: { maths: '2025', physique: 'pc-projet-2025' } }, 'setTarget changes one subject');
+// Badges: a bilan badge per subject.
+M.cat.subjects.forEach(s => ok(P.badges(St.read()).some(b => b.subject === s.id && b.icon === '🧭'), `${s.id}: bilan badge`));
+St.setExplainPref('aires', 'experience'); St.setExplainPref('perimetres', 'experience'); St.setExplainPref('tables-mult', 'experience');
+const vsT = M.cat.explanationsOf('tables-div');
+ok(!vsT.some(v => v.style === 'experience') && P.preferredExplanation(St.read(), 'tables-div', vsT) === 0, 'missing favourite style falls back to the first explanation');
+St.reset();
 
 // ------------------------------------------------------------------
 console.log(`\n${failures ? '❌' : '✅'} ${passes} passed, ${failures} failed`);

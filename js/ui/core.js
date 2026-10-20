@@ -16,6 +16,25 @@
     routes.push({ re, keys, view });
   };
 
+  // ---------- Subject (per tab) ----------
+  // A page about a notion, chapter or domain belongs to its subject: deep links switch to it.
+  const subject = () => M.cat.subjectById(M.store.subject());
+  function showSubject() {
+    const s = subject();
+    document.body.dataset.subject = s.id;
+    document.getElementById('brand-icon').textContent = s.icon;
+    document.querySelectorAll('[data-subject-btn]').forEach(b => b.setAttribute('aria-pressed', b.dataset.subjectBtn === s.id));
+  }
+  const switcher = document.getElementById('subjects');
+  switcher.innerHTML = M.cat.subjects.map(s => `<button class="chip" data-subject-btn="${s.id}" aria-pressed="false" title="${s.title}">${s.icon} <span class="label">${s.title}</span></button>`).join('');
+  switcher.addEventListener('click', e => {
+    const b = e.target.closest('[data-subject-btn]');
+    if (!b || b.dataset.subjectBtn === subject().id) return;
+    M.store.setSubject(b.dataset.subjectBtn);
+    // A page tied to one notion/chapter of the other subject makes no sense any more: go to the Sommaire.
+    if (/^#\/?[^/]+\/./.test(location.hash)) location.hash = '#/sommaire'; else navigate();
+  });
+
   function navigate() {
     if (teardown) { try { teardown(); } catch (e) { console.error(e); } }
     teardown = null; keyHandler = null;
@@ -26,6 +45,9 @@
     const r = routes.find(x => x.re.test(path)) || routes.find(x => x.re.test(''));
     const m = r.re.exec(path) || [];
     const params = Object.fromEntries(r.keys.map((k, i) => [k, m[i + 1]]));
+    const owner = M.cat.subjectOf(params.id || params.dom || '');
+    if (owner) M.store.setSubject(owner.id);
+    showSubject();
     document.querySelectorAll('[data-nav]').forEach(a => a.classList.toggle('active', path.startsWith(a.dataset.nav)));
     window.scrollTo(0, 0);
     if (!M.store.read().name) M.ui.welcome(); else r.view(params);
@@ -92,11 +114,13 @@
   const notionStatus = (state, no) => P.statusOf(state, no);
   // Class tag of a notion in the pupil's chosen programme ("+" when outside it).
   function levelTag(state, no) {
-    const lv = M.programmes.levelIn(state.target.version, no.id);
+    const lv = M.programmes.levelIn(M.programmes.versionFor(state.target, no.subject.id), no.id);
     return lv === M.programmes.HORS ? '<span class="tag tag-plus" title="Hors programme : pour aller plus loin">+</span>' : `<span class="tag">${lv}</span>`;
   }
-  const targetLabel = state => `${state.target.classe} · ${M.programmes.byId(state.target.version).label}`;
+  const targetLabel = state => `${state.target.classe} · ${M.programmes.byId(M.programmes.versionFor(state.target, subject().id)).label}`;
+  // A link to a notion; one of another subject than the current one shows that subject's icon.
+  const notionLink = no => `<a href="#/lecon/${no.id}">${no.subject === subject() ? '' : no.subject.icon + ' '}${no.num} ${no.title}</a>`;
   const notionStars = (state, no) => P.stars(state.notions[no.id], no);
 
-  M.ui = { route, navigate, render, onLeave, onKey, openModal, closeModal, esc, announce, STATUS, statusHtml, starsHtml, barHtml, download, notionStatus, notionStatusHtml, legendHtml, notionStars, levelTag, targetLabel };
+  M.ui = { subject, notionLink, route, navigate, render, onLeave, onKey, openModal, closeModal, esc, announce, STATUS, statusHtml, starsHtml, barHtml, download, notionStatus, notionStatusHtml, legendHtml, notionStars, levelTag, targetLabel };
 })();

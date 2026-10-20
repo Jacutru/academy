@@ -4,7 +4,7 @@
 //   { kind:'choice',   options:[html], correct }  correct: index
 //   { kind:'division', q, r }                     Euclidean division
 //   { kind:'duration', s, units }                 s: total seconds, units: 'hm' | 'ms' | 'hms'
-//   { kind:'order',    items:[html], correct:[indices in the right order], sep }
+//   { kind:'order',    items:[html], correct:[indices in the right order], sep, label?, how? }
 // check() returns { status: 'ok' | 'wrong' | 'invalid', msg? }. 'invalid' never counts as a mistake.
 (function () {
   'use strict';
@@ -112,9 +112,10 @@
       validate: a => (Number.isInteger(a.s) && a.s >= 0 ? [] : ['bad duration']),
     },
     order: {
-      hint: a => `Clique dans l’ordre ${a.sep === '>' ? 'décroissant' : 'croissant'} (ou touches 1 à ${a.items.length})`,
+      // label/how: set by kit.sequence for words or steps; numbers are ordered by size.
+      hint: a => `Clique ${a.how || `dans l’ordre ${a.sep === '>' ? 'décroissant' : 'croissant'}`} (ou touches 1 à ${a.items.length})`,
       check(a, input) {
-        if (!Array.isArray(input) || input.length !== a.items.length) return invalid('Range tous les nombres.');
+        if (!Array.isArray(input) || input.length !== a.items.length) return invalid(a.label ? `Range ${a.label} jusqu’au bout.` : 'Range tous les nombres.');
         return input.every((v, i) => v === a.correct[i]) ? ok : wrong;
       },
       show: a => a.correct.map(i => a.items[i]).join(` ${a.sep || '<'} `),

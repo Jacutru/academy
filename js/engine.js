@@ -5,7 +5,7 @@
   const M = globalThis.M;
   const { rng: makeRng, newSeed, today } = M.u;
   const P = M.progress;
-  const { byId, list, content, domains } = M.cat;
+  const { byId, content, domains } = M.cat;
 
   const RECENT = 8;
   const DAILY_SIZE = 15;
@@ -20,7 +20,9 @@
     }
   }
 
-  const playable = () => list.filter(no => content[no.id]);
+  // Notions with content in a subject (the current one by default): sessions never mix subjects.
+  const current = () => M.store.subject();
+  const playable = (subject = current()) => M.cat.listOf(subject).filter(no => content[no.id]);
   const levelOf = (state, id) => (state.notions[id] ? state.notions[id].level : 1);
 
   // Base run: queue of { id, level?, q?, retry?, diag? } items.
@@ -77,8 +79,8 @@
 
   // ---------- Daily session ----------
   // ~70 % weak/average notions (🔴 first, prerequisites first), ~30 % due reviews; new notions fill gaps.
-  function planDaily(state, n = DAILY_SIZE, td = today()) {
-    const ns = playable();
+  function planDaily(state, n = DAILY_SIZE, td = today(), subject = current()) {
+    const ns = playable(subject);
     const st = no => P.statusOf(state, no);
     const practised = ns.filter(no => st(no) !== 'new');
     const rank = { weak: 0, average: 1 };
@@ -129,21 +131,21 @@
 
   // ---------- Chrono (60 s) ----------
   const CHRONO_MS = 60000;
-  const chronoNotions = () => playable().filter(no => no.chrono);
+  const chronoNotions = (subject = current()) => playable(subject).filter(no => no.chrono);
   function chrono(id) {
-    const ids = id ? [id] : chronoNotions().map(n => n.id);
-    return makeRun('chrono', id ? `Chrono — ${byId[id].title}` : 'Chrono — calcul mental', [], {
-      infinite: true, retry: false, timeLimit: CHRONO_MS, chronoKey: id || 'mix',
+    const subj = M.cat.subjectById(current()), ids = id ? [id] : chronoNotions(subj.id).map(n => n.id);
+    return makeRun('chrono', id ? `Chrono — ${byId[id].title}` : `Chrono — ${subj.chronoTitle}`, [], {
+      infinite: true, retry: false, timeLimit: CHRONO_MS, chronoKey: id || 'mix:' + subj.id,
       refill: () => ({ id: ids[Math.floor(Math.random() * ids.length)] }),
     });
   }
 
   // ---------- Home: what should the kid do next? ----------
-  function nextStep(state = M.store.read(), td = today()) {
-    const dom = M.cat.tree.find(d => !P.diagDone(state, d));
+  function nextStep(state = M.store.read(), td = today(), subject = current()) {
+    const dom = M.cat.treeOf(subject).find(d => !P.diagDone(state, d));
     if (dom) return { kind: 'diag', domain: dom };
-    const doneToday = state.log.some(e => e[5] === 'session' && P.dayOf(e[0]) === td);
-    const ns = playable();
+    const doneToday = state.log.some(e => e[5] === 'session' && P.dayOf(e[0]) === td && (M.cat.subjectOf(e[1]) || {}).id === subject);
+    const ns = playable(subject);
     const pending = ns.some(no => ['weak', 'average'].includes(P.statusOf(state, no)) || P.isDue(state.notions[no.id], no, td));
     if (pending && !doneToday) return { kind: 'daily' };
     return { kind: doneToday ? 'doneToday' : 'upToDate' };

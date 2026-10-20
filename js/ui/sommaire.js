@@ -1,4 +1,4 @@
-// Sommaire: Domaine → Chapitre → Notion, with search and status filter.
+// Sommaire of the current subject: Domaine → Chapitre → Notion, with search and status filter.
 (function () {
   'use strict';
   if (typeof document === 'undefined') return;
@@ -66,17 +66,17 @@
   }
 
   UI.route('sommaire', () => {
-    const state = M.store.read();
+    const state = M.store.read(), subj = UI.subject();
     UI.render(`
-      <h1>📚 Sommaire</h1>
+      <h1>📚 Sommaire · ${subj.icon} ${subj.title}</h1>
       <form id="target" class="row target-bar" aria-label="Classe et programme de référence">
         <label>Je suis en <select id="t-classe" class="text-input">${M.programmes.targetClasses.map(c => `<option ${c === state.target.classe ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
-        <label>Programme de référence <select id="t-version" class="text-input">${M.programmes.versions.map(v => `<option value="${v.id}" ${v.id === state.target.version ? 'selected' : ''}>${UI.esc(v.label)}</option>`).join('')}</select></label>
+        <label>Programme de référence <select id="t-version" class="text-input">${M.programmes.versionsOf(subj.id).map(v => `<option value="${v.id}" ${v.id === M.programmes.versionFor(state.target, subj.id) ? 'selected' : ''}>${UI.esc(v.label)}</option>`).join('')}</select></label>
       </form>
       <p class="muted">« Mon programme » montre les leçons à connaître en ${state.target.classe} et avant, selon ce programme. Clique sur une notion pour lire la leçon, ou entraîne-toi directement.</p>
       <div class="toolbar">${SCOPES.map(([k, l]) => `<button class="chip" data-s="${k}" aria-pressed="${scope === k}">${l}</button>`).join('')}</div>
       <div class="toolbar">
-        <input type="search" id="q" placeholder="Rechercher une notion (ex : fraction, aire, virgule…)" value="${UI.esc(query)}" aria-label="Rechercher une notion">
+        <input type="search" id="q" placeholder="Rechercher une notion (ex : ${subj.searchHint}…)" value="${UI.esc(query)}" aria-label="Rechercher une notion">
         ${FILTERS.map(([k, l]) => `<button class="chip" data-f="${k}" aria-pressed="${filter === k}">${l}</button>`).join('')}
         <span class="spacer"></span>
         <span class="seg" role="group" aria-label="Affichage">
@@ -86,7 +86,7 @@
       </div>
       ${UI.legendHtml()}
       <div id="tree">
-        ${M.cat.tree.map(d => {
+        ${subj.tree.map(d => {
           const p = P.domainProgress(state, d);
           return `<section class="dom">
             <div class="dom-head"><h2>${d.num}. ${d.icon} ${d.title}</h2>${UI.barHtml(p.pct)}<span class="muted">${p.pct} %</span>
@@ -116,7 +116,7 @@
     };
     // Class / reference year: same setting as the Objectif on the Progrès page.
     document.querySelectorAll('#t-classe, #t-version').forEach(sel => sel.addEventListener('change', () => {
-      M.store.setTarget(document.getElementById('t-version').value, document.getElementById('t-classe').value);
+      M.store.setTarget(subj.id, document.getElementById('t-version').value, document.getElementById('t-classe').value);
       UI.navigate();
     }));
     const input = document.getElementById('q');
@@ -141,8 +141,10 @@
   });
 
   UI.route('chapitre/:id', ({ id }) => {
-    const chapters = M.cat.tree.flatMap(d => d.chapters), i = chapters.findIndex(c => c.id === id);
-    if (i < 0) { location.hash = '#/sommaire'; return; }
+    const ch0 = M.cat.chapterById[id];
+    if (!ch0) { location.hash = '#/sommaire'; return; }
+    // Previous / next stay within the chapter's subject.
+    const chapters = ch0.subject.tree.flatMap(d => d.chapters), i = chapters.indexOf(ch0);
     const ch = chapters[i], state = M.store.read(), p = chapterProgress(state, ch);
     const prev = chapters[i - 1], next = chapters[i + 1];
     UI.render(`

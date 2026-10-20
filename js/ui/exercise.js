@@ -19,7 +19,7 @@
       case 'choice':
         return `<div class="choices">${a.options.map((o, i) => `<button class="choice" data-i="${i}"><kbd>${i + 1}</kbd><span>${o}</span></button>`).join('')}</div>`;
       case 'order':
-        return `<div class="order-seq" id="seq" aria-live="polite"><span class="muted">Clique sur les nombres dans l’ordre…</span></div>
+        return `<div class="order-seq" id="seq" aria-live="polite"><span class="muted">Clique sur ${a.label || 'les nombres'} dans l’ordre…</span></div>
           <div class="choices">${a.items.map((o, i) => `<button class="choice" data-o="${i}"><kbd>${i + 1}</kbd><span>${o}</span></button>`).join('')}</div>
           <div class="row" style="margin-top:10px"><button class="btn small" data-act="undo">↶ Effacer <kbd>⌫</kbd></button></div>`;
     }
@@ -266,6 +266,6 @@
   UI.route('exercice/:id', ({ id }) => (content[id] ? start(() => M.engine.free(id)) : (location.hash = '#/sommaire')));
   UI.route('session', () => start(() => M.engine.daily()));
   UI.route('diagnostic/:dom', ({ dom }) => (domains[dom] ? start(() => M.engine.diagnostic(dom)) : (location.hash = '#/')));
-  UI.route('chrono', () => start(() => M.engine.chrono()));
+  UI.route('chrono', () => (M.engine.chronoNotions().length ? start(() => M.engine.chrono()) : (location.hash = '#/')));
   UI.route('chrono/:id', ({ id }) => (byId[id] && byId[id].chrono ? start(() => M.engine.chrono(id)) : (location.hash = '#/')));
 })();

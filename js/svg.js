@@ -5,8 +5,9 @@
   const M = globalThis.M;
   const { fmt, add, mul } = M.u;
 
-  const svg = (w, h, body, cls = '') =>
-    `<svg class="fig ${cls}" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img">${body}</svg>`;
+  // label: text alternative read by screen readers (escape it like any HTML text).
+  const svg = (w, h, body, cls = '', label = '') =>
+    `<svg class="fig ${cls}" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img"${label ? ` aria-label="${label}"` : ''}>${body}</svg>`;
   const text = (x, y, s, { cls = 's-text', anchor = 'middle', size = 15 } = {}) =>
     `<text x="${x}" y="${y}" class="${cls}" text-anchor="${anchor}" font-size="${size}">${s}</text>`;
   const line = (x1, y1, x2, y2, cls = 's-line') => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="${cls}"/>`;

@@ -7,20 +7,24 @@
   const { today } = M.u;
   const P = M.progress;
 
-  const KEY = 'maths6e';
-  const VERSION = 1;
+  const KEY = 'maths6e';     // historical name, kept so existing saves still load
+  const VERSION = 2;         // 2: subjects (target.versions per subject, chrono 'mix:<subject>')
   const LOG_CAP = 50000;
   const DAYS_CAP = 365;
 
   let memory = null;      // used when localStorage is unavailable
   let available = true;
 
-  const blank = () => ({ v: VERSION, name: '', target: { ...M.programmes.DEFAULT }, notions: {}, days: [], chronoBest: {}, seen: {}, explain: {}, log: [] });
+  const SUBJECTS = M.cat.subjects;
+  const blank = () => ({ v: VERSION, name: '', subject: SUBJECTS[0].id, target: cleanTarget({}), notions: {}, days: [], chronoBest: {}, seen: {}, explain: {}, log: [] });
   const cleanName = n => String(n).trim().replace(/\s+/g, ' ').slice(0, 30);
-  const cleanTarget = t => ({
-    version: M.programmes.versions.some(v => v.id === t.version) ? t.version : M.programmes.DEFAULT.version,
-    classe: M.programmes.targetClasses.includes(t.classe) ? t.classe : M.programmes.DEFAULT.classe,
-  });
+  const cleanSubject = s => (M.cat.subjectById(s) ? s : SUBJECTS[0].id);
+  // { classe, versions: { [subject]: versionId } }; v1 saves had a single maths `version`.
+  function cleanTarget(t) {
+    const P = M.programmes, given = { ...(t.version ? { maths: t.version } : {}), ...(t.versions || {}) };
+    const versions = Object.fromEntries(SUBJECTS.map(s => [s.id, P.versionsOf(s.id).some(v => v.id === given[s.id]) ? given[s.id] : P.DEFAULT.versions[s.id]]));
+    return { classe: P.targetClasses.includes(t.classe) ? t.classe : P.DEFAULT.classe, versions };
+  }
 
   // Upgrade any older/partial state to the current schema.
   function migrate(s) {
@@ -37,7 +41,9 @@
     });
     out.days = Array.isArray(s.days) ? s.days.filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(-DAYS_CAP) : [];
     out.log = Array.isArray(s.log) ? s.log.filter(Array.isArray).slice(-LOG_CAP) : [];
-    out.chronoBest = s.chronoBest && typeof s.chronoBest === 'object' ? s.chronoBest : {};
+    out.chronoBest = s.chronoBest && typeof s.chronoBest === 'object' ? { ...s.chronoBest } : {};
+    if ('mix' in out.chronoBest) { out.chronoBest['mix:' + SUBJECTS[0].id] = Math.max(out.chronoBest.mix, out.chronoBest['mix:' + SUBJECTS[0].id] || 0); delete out.chronoBest.mix; }
+    out.subject = cleanSubject(s.subject);
     out.seen = s.seen && typeof s.seen === 'object' ? s.seen : {};
     out.name = typeof s.name === 'string' ? cleanName(s.name) : '';
     out.target = cleanTarget(s.target || {});
@@ -108,7 +114,25 @@
   }
 
   const setName = n => update(s => { s.name = cleanName(n); });
-  const setTarget = (version, classe) => update(s => { s.target = cleanTarget({ version, classe }); });
+  // Version of one subject and the (shared) class.
+  const setTarget = (subject, version, classe) => update(s => { s.target = cleanTarget({ classe, versions: { ...s.target.versions, [subject]: version } }); });
+
+  // Current subject: per tab (sessionStorage), so two open tabs never switch each other; the saved
+  // state only holds the last choice, used by new tabs.
+  const TAB_KEY = 'academy.subject';
+  let tabSubject = null;
+  function subject() {
+    if (!tabSubject) { try { tabSubject = globalThis.sessionStorage.getItem(TAB_KEY); } catch (e) { /* unavailable */ } }
+    if (!M.cat.subjectById(tabSubject)) tabSubject = read().subject;
+    return tabSubject;
+  }
+  function setSubject(id) {
+    id = cleanSubject(id);
+    tabSubject = id;
+    try { globalThis.sessionStorage.setItem(TAB_KEY, id); } catch (e) { /* unavailable: memory only */ }
+    if (read().subject !== id) update(s => { s.subject = id; });
+    return id;
+  }
   const setExplainPref = (id, style) => update(s => { s.explain[id] = style; });
   // File names for exports: "academy-lea-2026-10-08".
   const fileStem = () => ['academy', M.u.norm(read().name).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')].filter(Boolean).join('-');
@@ -125,10 +149,10 @@
   function exportCSV() {
     const pad = n => String(n).padStart(2, '0');
     const { name, log } = read();
-    const rows = [['eleve', 'date', 'heure', 'notion', 'titre', 'domaine', 'chapitre', 'niveau', 'correct', 'temps_s', 'mode']];
+    const rows = [['eleve', 'date', 'heure', 'matiere', 'notion', 'titre', 'domaine', 'chapitre', 'niveau', 'correct', 'temps_s', 'mode']];
     log.forEach(([at, id, lvl, ok, ms, mode]) => {
       const d = new Date(at), no = M.cat.byId[id];
-      rows.push([name, today(d), `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`, id, no ? no.title : '', no ? no.domain.title : '', no ? no.chapter.title : '', lvl, ok, (ms / 1000).toFixed(1).replace('.', ','), mode]);
+      rows.push([name, today(d), `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`, no ? no.subject.title : '', id, no ? no.title : '', no ? no.domain.title : '', no ? no.chapter.title : '', lvl, ok, (ms / 1000).toFixed(1).replace('.', ','), mode]);
     });
     const esc = v => { const t = String(v); return /[;"\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
     return '﻿' + rows.map(r => r.map(esc).join(';')).join('\r\n');   // BOM + ';' so Excel (fr) opens it correctly
@@ -136,7 +160,7 @@
   const reset = () => write(blank());
 
   M.store = {
-    KEY, VERSION, blank, migrate, read, update, recordAnswer, setLevel, markSeen, setChronoBest, setName, setTarget, setExplainPref, fileStem,
+    KEY, VERSION, blank, migrate, read, update, recordAnswer, setLevel, markSeen, setChronoBest, setName, setTarget, subject, setSubject, setExplainPref, fileStem,
     exportJSON, importJSON, exportCSV, reset,
     isPersistent: () => (read(), available),
   };

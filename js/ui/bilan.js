@@ -97,20 +97,23 @@
   const ago = at => { const d = diffDays(P.dayOf(at), today()); return d === 0 ? 'aujourd’hui' : d === 1 ? 'hier' : `il y a ${d} j`; };
 
   UI.route('bilan', () => {
-    const state = M.store.read(), log = state.log;
+    // Charts and tables cover the current subject; badges, name and data are shared.
+    const subj = UI.subject(), state = M.store.read();
+    const log = state.log.filter(e => M.cat.byId[e[1]] && M.cat.byId[e[1]].subject === subj);
     const total = log.length, okN = log.filter(e => e[3]).length;
     const spanDays = total ? diffDays(P.dayOf(log[0][0]), today()) : 0;
     const g = grain || (spanDays > 21 ? 'week' : 'day');
     const bk = buckets(log, g);
-    const stats = notionStats(state);
+    const stats = notionStats({ ...state, log });
     const badges = P.badges(state);
     const persistent = M.store.isPersistent();
+    const version = M.programmes.versionFor(state.target, subj.id);
 
     const dataTable = `<details><summary>Voir les données en tableau</summary><table class="data"><thead><tr><th>${g === 'week' ? 'Semaine' : 'Jour'}</th><th>Questions</th><th>Réussite</th><th>Temps médian</th></tr></thead><tbody>
       ${bk.filter(b => b.count).map(b => `<tr><td>${b.full}</td><td class="n">${b.count}</td><td class="n">${b.rate} %</td><td class="n">${b.time === null ? '—' : fmt(b.time) + ' s'}</td></tr>`).join('') || '<tr><td colspan="4" class="empty">Pas encore de données.</td></tr>'}</tbody></table></details>`;
 
     const root = UI.render(`
-      <h1>📈 Les progrès de ${UI.esc(state.name)}</h1>
+      <h1>📈 Les progrès de ${UI.esc(state.name)} · ${subj.icon} ${subj.title}</h1>
       <div class="grid grid-3">
         <div class="card stat"><b>${fmt(total)}</b>réponses</div>
         <div class="card stat"><b>${total ? Math.round((100 * okN) / total) : 0} %</b>réussies du premier coup</div>
@@ -130,33 +133,34 @@
 
       <h2>Par notion</h2>
       ${UI.legendHtml()}
-      ${stats.length ? M.cat.tree.map(d => {
+      ${stats.length ? subj.tree.map(d => {
         const rows = stats.filter(s => s.no.domain === d);
         if (!rows.length) return '';
         return `<div class="card" style="margin-bottom:12px"><h3>${d.icon} ${d.title}</h3><div style="overflow-x:auto"><table class="data">
           <thead><tr><th>Notion</th><th>Statut</th><th>Niv.</th><th class="n">Réponses</th><th class="n">Réussite</th><th>Tendance</th><th class="n">Temps médian</th><th>Dernière fois</th></tr></thead><tbody>
-          ${rows.map(s => `<tr><td><a href="#/lecon/${s.no.id}">${s.no.num} ${s.no.title}</a></td><td>${UI.notionStatusHtml(state, s.no)} ${UI.starsHtml(UI.notionStars(state, s.no))}</td>
+          ${rows.map(s => `<tr><td>${UI.notionLink(s.no)}</td><td>${UI.notionStatusHtml(state, s.no)} ${UI.starsHtml(UI.notionStars(state, s.no))}</td>
             <td class="n">${state.notions[s.no.id] ? state.notions[s.no.id].level : 1}</td><td class="n">${s.n}</td><td class="n">${s.rate} %</td><td>${trend(s)}</td>
             <td class="n">${s.time === null ? '—' : fmt(Math.round(s.time * 10) / 10) + ' s'}</td><td>${ago(s.lastAt)}</td></tr>`).join('')}
           </tbody></table></div><small>Tendance : réussite des 10 dernières réponses comparée aux 10 précédentes.</small></div>`;
       }).join('') : '<p class="empty">Aucune notion travaillée pour l’instant.</p>'}
 
       <h2>Badges</h2>
-      <div class="badges">${badges.map(b => `<div class="badge ${b.earned ? '' : 'off'}"><span class="ic">${b.icon}</span><div><b>${b.title}</b><small>${b.desc}</small></div></div>`).join('')}</div>
+      ${[...M.cat.subjects.map(s => [`${s.icon} ${s.title}`, badges.filter(b => b.subject === s.id)]), ['Pour toutes les matières', badges.filter(b => !b.subject)]].map(([title, bs]) => `<h3>${title}</h3>
+      <div class="badges">${bs.map(b => `<div class="badge ${b.earned ? '' : 'off'}"><span class="ic">${b.icon}</span><div><b>${b.title}</b><small>${b.desc}</small></div></div>`).join('')}</div>`).join('')}
 
       <h2>🎯 Objectif</h2>
       <div class="card">
         <form id="target" class="row">
           <label>Classe <select id="t-classe" class="text-input" style="min-width:6em">${M.programmes.targetClasses.map(c => `<option ${c === state.target.classe ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
-          <label>Programme <select id="t-version" class="text-input">${M.programmes.versions.map(v => `<option value="${v.id}" ${v.id === state.target.version ? 'selected' : ''}>${UI.esc(v.label)}</option>`).join('')}</select></label>
+          <label>Programme de ${subj.title.toLowerCase()} <select id="t-version" class="text-input">${M.programmes.versionsOf(subj.id).map(v => `<option value="${v.id}" ${v.id === version ? 'selected' : ''}>${UI.esc(v.label)}</option>`).join('')}</select></label>
           <button class="btn primary small">Enregistrer</button>
         </form>
-        <p><small>${UI.esc(M.programmes.byId(state.target.version).refs)}</small></p>
+        <p><small>${UI.esc(M.programmes.byId(version).refs)}</small></p>
         <p><small>Le bilan de départ, la progression et le sommaire (filtre « Mon programme ») portent sur les leçons de cette classe et des classes d’avant, telles que ce programme les définit.</small></p>
       </div>
 
       <h2>Bilan de départ</h2>
-      <div class="row">${M.cat.tree.map(d => `<a class="btn" href="#/diagnostic/${d.id}">🧭 ${d.title} ${P.diagDone(state, d) ? '✓' : ''}</a>`).join('')}</div>
+      <div class="row">${subj.tree.filter(d => P.inScope(state, d.notions).length).map(d => `<a class="btn" href="#/diagnostic/${d.id}">🧭 ${d.title} ${P.diagDone(state, d) ? '✓' : ''}</a>`).join('')}</div>
 
       <h2>Données</h2>
       <div class="card">
@@ -189,7 +193,7 @@
     });
     root.querySelector('#target').addEventListener('submit', e => {
       e.preventDefault();
-      M.store.setTarget(root.querySelector('#t-version').value, root.querySelector('#t-classe').value);
+      M.store.setTarget(subj.id, root.querySelector('#t-version').value, root.querySelector('#t-classe').value);
       UI.navigate();
     });
     root.querySelector('#rename').addEventListener('submit', e => {

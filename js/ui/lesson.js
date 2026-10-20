@@ -7,7 +7,7 @@
   const { byId, content } = M.cat;
 
   const list = items => `<ul>${items.map(i => `<li>${i}</li>`).join('')}</ul>`;
-  const links = ids => ids.map(id => `<a href="#/lecon/${id}">${byId[id].num} ${byId[id].title}</a>`).join(' ');
+  const links = ids => ids.map(id => UI.notionLink(byId[id])).join(' ');
 
   // ---------- Explanation chooser: several ways to explain, the pupil keeps the clearest ----------
   const { STYLES } = M.cat;

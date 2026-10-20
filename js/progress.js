@@ -104,11 +104,18 @@
   // Badges reward real mastery: excellent (98 %+, level 3, enough answers).
   const allMastered = (state, ids) => ids.every(id => statusOf(state, M.cat.byId[id]) === 'excellent');
   const chapterIds = chId => M.cat.list.filter(n => n.chapter.id === chId).map(n => n.id);
+  // subject: shown with that subject's badges; a "bilan complet" badge is generated for every subject.
   const BADGES = [
-    { id: 'tables', icon: '✖️', title: 'Toutes les tables', desc: 'Maîtriser les tables de multiplication et de division.', test: s => allMastered(s, ['tables-mult', 'tables-div']) },
-    { id: 'decimaux', icon: '🔟', title: 'As des décimaux', desc: 'Maîtriser tout le chapitre « Nombres décimaux ».', test: s => allMastered(s, chapterIds('decimaux')) },
-    { id: 'fractions', icon: '🍕', title: 'Maître des fractions', desc: 'Maîtriser tout le chapitre « Fractions ».', test: s => allMastered(s, chapterIds('fractions')) },
-    { id: 'diag', icon: '🧭', title: 'Bilan complet', desc: 'Terminer les trois parties du bilan de départ.', test: s => M.cat.tree.every(d => diagDone(s, d)) },
+    { id: 'tables', subject: 'maths', icon: '✖️', title: 'Toutes les tables', desc: 'Maîtriser les tables de multiplication et de division.', test: s => allMastered(s, ['tables-mult', 'tables-div']) },
+    { id: 'decimaux', subject: 'maths', icon: '🔟', title: 'As des décimaux', desc: 'Maîtriser tout le chapitre « Nombres décimaux ».', test: s => allMastered(s, chapterIds('decimaux')) },
+    { id: 'fractions', subject: 'maths', icon: '🍕', title: 'Maître des fractions', desc: 'Maîtriser tout le chapitre « Fractions ».', test: s => allMastered(s, chapterIds('fractions')) },
+    { id: 'pc-etats', subject: 'physique', icon: '🧊', title: 'États de la matière', desc: 'Maîtriser tout le chapitre « États et changements d’état ».', test: s => allMastered(s, chapterIds('pc-etats')) },
+    { id: 'pc-melanges', subject: 'physique', icon: '⚗️', title: 'Chimiste', desc: 'Maîtriser tout le chapitre « Mélanges et corps purs ».', test: s => allMastered(s, chapterIds('pc-melanges')) },
+    { id: 'pc-circuits', subject: 'physique', icon: '💡', title: 'Électricien', desc: 'Maîtriser tout le chapitre « Circuits électriques ».', test: s => allMastered(s, chapterIds('pc-circuits')) },
+    ...M.cat.subjects.map(subj => ({
+      id: subj.id === M.cat.subjects[0].id ? 'diag' : 'diag-' + subj.id, subject: subj.id, icon: '🧭', title: `Bilan de ${subj.title.toLowerCase()} complet`,
+      desc: `Terminer toutes les parties du bilan de départ de ${subj.title.toLowerCase()}.`, test: s => subj.tree.every(d => diagDone(s, d)),
+    })),
     { id: 'streak7', icon: '🔥', title: '7 jours d’affilée', desc: 'S’entraîner 7 jours de suite.', test: s => longestStreak(s.days) >= 7 },
     { id: 'chrono30', icon: '⚡', title: 'Éclair', desc: '30 bonnes réponses en 60 secondes.', test: s => Object.values(s.chronoBest).some(v => v >= 30) },
     { id: 'answers500', icon: '💯', title: '500 réponses', desc: 'Répondre à 500 questions.', test: s => s.log.length >= 500 },

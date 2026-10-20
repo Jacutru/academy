@@ -1,4 +1,4 @@
-// THE catalogue: domain → chapter → notion. Single source of structure, order, titles and prerequisites.
+// THE catalogue: subject → domain → chapter → notion. Single source of structure, order, titles and prerequisites.
 // Notion content (lesson + generator) is registered separately with M.notion(id, def).
 (function () {
   'use strict';
@@ -10,7 +10,7 @@
   // niveau: 'CE2' | 'CM1' | 'CM2' | '6e' | '5e' | '4e' | '3e' | '+' ('+' = hors programme actuel).
   // Official references: cycle 3 programme (BO n° 16, 17 April 2025) for 6e; cycle 4 programme
   // (BO n° 10, 5 March 2026) for 5e.
-  const tree = [
+  const mathsTree = [
     { id: 'nombres', title: 'Nombres & calcul', icon: '🔢', chapters: [
       { id: 'entiers', title: 'Nombres entiers', notions: [
         N('grands-nombres', 'Lire et écrire les grands nombres'),
@@ -161,27 +161,124 @@
     ] },
   ];
 
-  // Flat index with parent pointers and computed numbering ("1.4", "1.4.2").
-  const byId = {}, list = [];
-  tree.forEach((dom, di) => {
-    dom.num = String(di + 1);
-    dom.notions = [];
-    dom.chapters.forEach((ch, ci) => {
-      ch.num = `${dom.num}.${ci + 1}`;
-      ch.domain = dom;
-      ch.notions.forEach((no, ni) => {
-        if (byId[no.id]) throw new Error('Duplicate notion id ' + no.id);
-        no.num = `${ch.num}.${ni + 1}`;
-        no.chapter = ch;
-        no.domain = dom;
-        no.index = list.length;
-        byId[no.id] = no;
-        list.push(no);
-        dom.notions.push(no);
+  // Physique-chimie: cycle 4 programme in force (BO spécial n° 11, 26 November 2015, consolidated in
+  // BO n° 31, 30 July 2020), 5e content from its « repères de progressivité »; cycle 3 basics tagged 6e.
+  // '+' notions only appear in the CSP draft (July 2025), see programmes.js. Maths notions are
+  // prerequisites where physique reuses them (conversions, proportionality, mean).
+  const physiqueTree = [
+    { id: 'pc-matiere', title: 'La matière', icon: '🧪', chapters: [
+      { id: 'pc-etats', title: 'États et changements d’état', notions: [
+        N('pc-etats-proprietes', 'Solide, liquide, gaz', { chrono: true }),
+        N('pc-changements-etat', 'Les changements d’état', { niveau: '5e', chrono: true, prereq: ['pc-etats-proprietes'] }),
+        N('pc-temperatures-etat', 'Températures de fusion et d’ébullition', { niveau: '5e', negatives: true, prereq: ['pc-changements-etat'] }),
+        N('pc-palier', 'Palier de température : corps pur ou mélange', { niveau: '5e', negatives: true, prereq: ['pc-temperatures-etat', 'donnees'] }),
+        N('pc-conservation-masse', 'La masse se conserve, pas le volume', { niveau: '5e', prereq: ['pc-changements-etat'] }),
+        N('pc-modele-particulaire', 'Le modèle des particules', { niveau: '5e', prereq: ['pc-etats-proprietes'] }),
+      ] },
+      { id: 'pc-mesures', title: 'Mesurer la matière', notions: [
+        N('pc-lire-eprouvette', 'Mesurer un volume à l’éprouvette', { niveau: '5e', prereq: ['conv-volumes'] }),
+        N('pc-masse-volume', 'Masse et volume sont proportionnels', { niveau: '5e', prereq: ['pc-lire-eprouvette', 'prop-tableau'] }),
+        N('pc-pression', 'La pression d’un gaz', { niveau: '+', prereq: ['pc-etats-proprietes'] }),
+        N('pc-mesure-repetee', 'Répéter une mesure', { niveau: '+', prereq: ['statistiques'] }),
+      ] },
+      { id: 'pc-melanges', title: 'Mélanges et corps purs', notions: [
+        N('pc-homogene-heterogene', 'Mélange homogène ou hétérogène'),
+        N('pc-separer', 'Séparer les constituants d’un mélange', { prereq: ['pc-homogene-heterogene'] }),
+        N('pc-corps-pur-melange', 'Corps pur ou mélange', { niveau: '5e', prereq: ['pc-homogene-heterogene'] }),
+        N('pc-solubilite', 'Dissoudre : solubilité et saturation', { niveau: '5e', prereq: ['pc-corps-pur-melange', 'prop-tableau'] }),
+        N('pc-miscibilite', 'Liquides miscibles ou non', { niveau: '5e', prereq: ['pc-homogene-heterogene'] }),
+        N('pc-air', 'La composition de l’air', { niveau: '5e', prereq: ['pc-corps-pur-melange', 'pourcentages'] }),
+      ] },
+      { id: 'pc-transfos', title: 'Transformations', notions: [
+        N('pc-transfo-chimique', 'Transformation physique ou chimique', { niveau: '5e', prereq: ['pc-changements-etat', 'pc-solubilite'] }),
+      ] },
+    ] },
+    { id: 'pc-mouvement', title: 'Mouvement', icon: '🚀', chapters: [
+      { id: 'pc-mouvements', title: 'Décrire un mouvement', notions: [
+        N('pc-trajectoires', 'Trajectoires : rectiligne, circulaire, curviligne'),
+        N('pc-uniforme-varie', 'Mouvement uniforme, accéléré, ralenti', { niveau: '5e', prereq: ['pc-trajectoires'] }),
+        N('pc-relativite', 'Le mouvement dépend de l’observateur', { niveau: '5e', prereq: ['pc-trajectoires'] }),
+        N('pc-vitesse', 'Vitesse, distance et durée', { niveau: '5e', prereq: ['pc-uniforme-varie', 'durees-conv', 'prop-tableau'] }),
+      ] },
+    ] },
+    { id: 'pc-energie', title: 'Énergie & électricité', icon: '⚡', chapters: [
+      { id: 'pc-sources', title: 'L’énergie', notions: [
+        N('pc-sources-energie', 'Sources d’énergie renouvelables ou non'),
+        N('pc-conversions-energie', 'Les conversions d’énergie', { niveau: '5e', prereq: ['pc-sources-energie'] }),
+        N('pc-ordres-grandeur-energie', 'Ordres de grandeur d’énergie', { niveau: '5e', prereq: ['pc-conversions-energie', 'ordre-grandeur'] }),
+      ] },
+      { id: 'pc-circuits', title: 'Circuits électriques', notions: [
+        N('pc-symboles', 'Les symboles normalisés', { chrono: true }),
+        N('pc-circuit-ferme', 'Circuit ouvert, fermé, court-circuit', { niveau: '5e', prereq: ['pc-symboles'] }),
+        N('pc-serie-derivation', 'Circuit en série ou en dérivation', { niveau: '5e', prereq: ['pc-circuit-ferme'] }),
+        N('pc-intensite', 'L’intensité du courant', { niveau: '5e', prereq: ['pc-serie-derivation'] }),
+        N('pc-tension', 'La tension électrique', { niveau: '5e', prereq: ['pc-serie-derivation'] }),
+        N('pc-securite-elec', 'Les dangers de l’électricité', { niveau: '5e', prereq: ['pc-circuit-ferme'] }),
+      ] },
+    ] },
+    { id: 'pc-signaux', title: 'Lumière & son', icon: '🔊', chapters: [
+      { id: 'pc-lumiere', title: 'La lumière', notions: [
+        N('pc-sources-lumiere', 'Sources de lumière et objets diffusants', { niveau: '5e', chrono: true }),
+        N('pc-propagation-lumiere', 'Propagation rectiligne, ombres', { niveau: '5e', prereq: ['pc-sources-lumiere'] }),
+        N('pc-vitesse-lumiere', 'La vitesse de la lumière', { niveau: '5e', prereq: ['pc-propagation-lumiere', 'pc-vitesse'] }),
+      ] },
+      { id: 'pc-son', title: 'Le son', notions: [
+        N('pc-propagation-son', 'Le son a besoin de matière', { niveau: '5e', prereq: ['pc-vitesse'] }),
+        N('pc-frequence-son', 'Fréquence : aigu ou grave', { niveau: '+', prereq: ['pc-propagation-son'] }),
+        N('pc-niveau-sonore', 'Niveau sonore en décibels', { niveau: '+', prereq: ['pc-propagation-son'] }),
+      ] },
+    ] },
+  ];
+
+  // Subjects: everything subject-specific is data here; UI and engine never test a subject id.
+  // prefix: every domain/chapter/notion id of the subject starts with it (ids are global).
+  const subjects = [
+    { id: 'maths', title: 'Maths', icon: '🧮', prefix: '', chronoTitle: 'calcul mental', searchHint: 'fraction, aire, virgule', tree: mathsTree },
+    { id: 'physique', title: 'Physique-chimie', icon: '⚗️', prefix: 'pc-', chronoTitle: 'sciences', searchHint: 'fusion, circuit, son', tree: physiqueTree },
+  ];
+
+  // Flat index with parent pointers and numbering per subject ("1.4", "1.4.2").
+  const byId = {}, list = [], tree = [], chapterById = {};
+  const checkId = (subj, id) => { if (!id.startsWith(subj.prefix)) throw new Error(`Id ${id} must start with ${subj.prefix} (${subj.id})`); };
+  subjects.forEach(subj => {
+    subj.notions = [];
+    subj.tree.forEach((dom, di) => {
+      checkId(subj, dom.id);
+      dom.subject = subj;
+      dom.num = String(di + 1);
+      dom.notions = [];
+      tree.push(dom);
+      dom.chapters.forEach((ch, ci) => {
+        checkId(subj, ch.id);
+        if (chapterById[ch.id]) throw new Error('Duplicate chapter id ' + ch.id);
+        chapterById[ch.id] = ch;
+        ch.num = `${dom.num}.${ci + 1}`;
+        ch.domain = dom;
+        ch.subject = subj;
+        ch.notions.forEach((no, ni) => {
+          checkId(subj, no.id);
+          if (byId[no.id]) throw new Error('Duplicate notion id ' + no.id);
+          no.num = `${ch.num}.${ni + 1}`;
+          no.chapter = ch;
+          no.domain = dom;
+          no.subject = subj;
+          no.index = list.length;
+          byId[no.id] = no;
+          list.push(no);
+          dom.notions.push(no);
+          subj.notions.push(no);
+        });
       });
     });
   });
-  const domains = Object.fromEntries(tree.map(d => [d.id, d]));
+  const domains = {};
+  tree.forEach(d => { if (domains[d.id]) throw new Error('Duplicate domain id ' + d.id); domains[d.id] = d; });
+  const subjectById = Object.fromEntries(subjects.map(s => [s.id, s]));
+  const subjectAt = s => subjectById[s] || subjects[0];
+  const treeOf = s => subjectAt(s).tree;
+  const listOf = s => subjectAt(s).notions;
+  // Subject of a notion, chapter or domain id (null if unknown).
+  const subjectOf = id => { const x = byId[id] || chapterById[id] || domains[id]; return x ? x.subject : null; };
   // Reverse links ("used by") computed once, for "Voir aussi".
   list.forEach(no => { no.usedBy = []; });
   list.forEach(no => no.prereq.forEach(p => byId[p] && byId[p].usedBy.push(no.id)));
@@ -199,6 +296,7 @@
     vie: { icon: '🍕', label: 'Dans la vie de tous les jours' },
     etapes: { icon: '🪜', label: 'Pas à pas' },
     lien: { icon: '🔗', label: 'À partir de ce que je sais' },
+    experience: { icon: '🧪', label: 'Avec une expérience' },
   };
   const BASE = Symbol('lesson.explication');
   const explanations = {};
@@ -209,5 +307,5 @@
   // Resolved list of { style, html } for a notion (BASE → the lesson's own explication).
   const explanationsOf = id => (explanations[id] || []).map(v => ({ style: v.style, html: v.html === BASE ? content[id].lesson.explication : v.html }));
 
-  M.cat = { tree, byId, list, domains, content, STYLES, BASE, explanations, explanationsOf };
+  M.cat = { subjects, subjectById: id => subjectById[id] || null, subjectOf, treeOf, listOf, tree, byId, chapterById, list, domains, content, STYLES, BASE, explanations, explanationsOf };
 })();

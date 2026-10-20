@@ -1,7 +1,7 @@
 {
   "name": "Academy",
   "short_name": "Academy",
-  "description": "Leçons et exercices de maths, de la 6e à la 5e, alignés sur les programmes officiels.",
+  "description": "Leçons et exercices de maths et de physique-chimie, de la 6e à la 5e, alignés sur les programmes officiels.",
   "lang": "fr",
   "start_url": "./index.html",
   "scope": "./",
