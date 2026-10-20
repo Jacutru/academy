@@ -95,6 +95,10 @@
   const inScope = (state, notions) => withContent(notions).filter(no => M.programmes.inScope(state.target || M.programmes.DEFAULT, no.id));
   const statusOf = (state, no) => status(state.notions[no.id], no);
   const diagDone = (state, domain) => inScope(state, domain.notions).every(no => state.notions[no.id] && state.notions[no.id].hist.length);
+  // A subject's domains with notions in the pupil's target (a domain may have none, e.g. all 5e): the bilan parts.
+  const domainsInScope = (state, subj) => subj.tree.filter(d => inScope(state, d.notions).length);
+  // Answers given in a subject.
+  const logOf = (state, subj) => state.log.filter(e => M.cat.byId[e[1]] && M.cat.byId[e[1]].subject === subj);
   function domainProgress(state, domain) {
     const ns = inScope(state, domain.notions), total = ns.length * 3;
     const got = ns.reduce((s, no) => s + stars(state.notions[no.id], no), 0);
@@ -121,6 +125,8 @@
     { id: 'answers500', icon: '💯', title: '500 réponses', desc: 'Répondre à 500 questions.', test: s => s.log.length >= 500 },
   ];
   const badges = state => BADGES.map(b => ({ ...b, earned: !!b.test(state) }));
+  // A subject's badges and the shared ones.
+  const badgesOf = (state, subj) => badges(state).filter(b => !b.subject || b.subject === subj.id);
 
   // Most chosen explanation style overall (null if none yet).
   function favoriteStyle(state) {
@@ -139,6 +145,6 @@
     SPANS, RANK, atLeast, successRate,
     INTERVALS, WINDOW, HIST_CAP, CHRONO_MS,
     emptyNotion, median, dayOf, status, stars, due, isDue, applyAnswer, diagLevel,
-    favoriteStyle, preferredExplanation, streak, longestStreak, withContent, inScope, statusOf, diagDone, domainProgress, badges,
+    favoriteStyle, preferredExplanation, streak, longestStreak, withContent, inScope, statusOf, diagDone, domainsInScope, logOf, domainProgress, badges, badgesOf,
   };
 })();

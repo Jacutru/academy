@@ -23,35 +23,41 @@
   }
 
   // Point source S, opaque ball, screen. labels: { lit, dark, cast, screen } (letters or words).
+  // The ball's labels sit above the rays, with a leader line to each half of the ball.
   function shadowFig(labels, ballName = 'une balle') {
     const words = Object.values(labels).some(s => s.length > 1);
-    const W = words ? 500 : 400, H = 210, Sx = 30, Y = 105, xo = 150, r = 22, Xs = 350;
+    const W = words ? 500 : 400, top = 30, H = 210, Sx = 30, Y = 105 + top, xo = 150, r = 22, Xs = 350;
     const d = xo - Sx, L2 = d * d - r * r, tan = r / Math.sqrt(L2), hs = (Xs - Sx) * tan;
-    const chord = xo - (r * r) / d;
+    const chord = xo - (r * r) / d, y0 = 12 + top, y1 = 198 + top;
     let b = '';
     // Lit part of the screen, then the cast shadow (hatched).
-    b += `<rect x="${Xs}" y="12" width="10" height="${r1(Y - hs - 12)}" class="s-soft"/><rect x="${Xs}" y="${r1(Y + hs)}" width="10" height="${r1(198 - Y - hs)}" class="s-soft"/>`;
-    for (let y = Y - hs + 4; y < Y + hs; y += 6) b += line(Xs, r1(y), Xs + 10, r1(y), 's-grid');
-    b += `<rect x="${Xs}" y="12" width="10" height="186" class="s-line s-nofill"/>`;
+    b += `<rect x="${Xs}" y="${y0}" width="10" height="${r1(Y - hs - y0)}" class="s-soft"/><rect x="${Xs}" y="${r1(Y + hs)}" width="10" height="${r1(y1 - Y - hs)}" class="s-soft"/>`;
+    for (let y = Y - hs + 3; y < Y + hs; y += 4) b += line(Xs, r1(y), Xs + 10, r1(y), 's-hatch');
+    b += `<rect x="${Xs}" y="${y0}" width="10" height="${y1 - y0}" class="s-line s-nofill"/>`;
     // Rays: the two limit rays (tangent to the ball) and two rays reaching the lit screen.
     [-1, 1].forEach(s => {
       b += ray(Sx, Y, Xs, Y + s * hs, 0.3);
       b += ray(Sx, Y, Xs, Y + s * (hs + 55), 0.45);
     });
-    // Ball: dark side (ombre propre) hatched.
-    for (let x = chord + 3; x < xo + r; x += 4) {
+    // Ball: lit side light, dark side (ombre propre) hatched.
+    b += `<circle cx="${xo}" cy="${Y}" r="${r}" class="s-soft"/>`;
+    for (let x = chord + 2; x < xo + r; x += 3) {
       const h = Math.sqrt(r * r - (x - xo) * (x - xo));
-      b += line(r1(x), r1(Y - h), r1(x), r1(Y + h), 's-grid');
+      b += line(r1(x), r1(Y - h), r1(x), r1(Y + h), 's-hatch');
     }
     b += `<circle cx="${xo}" cy="${Y}" r="${r}" class="s-line s-nofill"/>`;
     b += dot(Sx, Y) + text(Sx, Y - 14, 'S', { cls: 's-text s-bold' });
     const sz = words ? 13 : 16, cls = 's-text s-bold';
-    b += text(xo - r - 6, Y - r - 10, labels.lit, { cls, anchor: 'end', size: sz });
-    b += text(xo + r + 6, Y - r - 10, labels.dark, { cls, anchor: 'start', size: sz });
+    // Leader lines from above the rays to a point inside each half of the ball.
+    [[labels.lit, -1, 'end'], [labels.dark, 1, 'start']].forEach(([lb, s, anchor]) => {
+      const lx = xo + s * 10;
+      b += text(lx + s * 2, 16, lb, { cls, anchor, size: sz });
+      b += line(lx, 22, r1(xo + s * r * 0.45), r1(Y - r * 0.45), 's-line s-dash');
+    });
     b += text(Xs + 18, Y + 5, labels.cast, { cls, anchor: 'start', size: sz });
     b += text(Xs + 18, r1(Y - hs - 25), labels.screen, { cls, anchor: 'start', size: sz });
-    b += text(Xs + 5, 208, 'écran', { size: 12 });
-    return svg(W, H + 6, b, '', `Une source ponctuelle S éclaire ${ballName} opaque placée devant un écran ; derrière l’objet, une zone de l’écran ne reçoit pas de lumière`);
+    b += text(Xs + 5, y1 + 10, 'écran', { size: 12 });
+    return svg(W, H + top + 6, b, '', `Une source ponctuelle S éclaire ${ballName} opaque placée devant un écran ; la face de l’objet tournée vers S est éclairée, la face opposée est sombre ; derrière l’objet, une zone de l’écran ne reçoit pas de lumière`);
   }
 
   // Sun, Earth and Moon. kind: 'soleil' (Soleil–Lune–Terre), 'lune' (Soleil–Terre–Lune), 'aucune' (Moon off the line).

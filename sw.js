@@ -2,7 +2,7 @@
 // which stays the single list of files. Afterwards: serve from cache, refresh in the background,
 // so a new version is picked up on the following launch.
 'use strict';
-const CACHE = 'academy-v4';
+const CACHE = 'academy-v5';
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {

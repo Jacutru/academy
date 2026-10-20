@@ -99,7 +99,7 @@
   UI.route('bilan', () => {
     // Charts and tables cover the current subject; badges, name and data are shared.
     const subj = UI.subject(), state = M.store.read();
-    const log = state.log.filter(e => M.cat.byId[e[1]] && M.cat.byId[e[1]].subject === subj);
+    const log = P.logOf(state, subj);
     const total = log.length, okN = log.filter(e => e[3]).length;
     const spanDays = total ? diffDays(P.dayOf(log[0][0]), today()) : 0;
     const g = grain || (spanDays > 21 ? 'week' : 'day');
@@ -115,9 +115,9 @@
     const root = UI.render(`
       <h1>📈 Les progrès de ${UI.esc(state.name)} · ${subj.icon} ${subj.title}</h1>
       <div class="grid grid-3">
-        <div class="card stat"><b>${fmt(total)}</b>réponses</div>
+        <div class="card stat"><b>${fmt(total)}</b>réponse${total > 1 ? 's' : ''}</div>
         <div class="card stat"><b>${total ? Math.round((100 * okN) / total) : 0} %</b>réussies du premier coup</div>
-        <div class="card stat"><b>🔥 ${P.streak(state.days)}</b>jours d’affilée (record : ${P.longestStreak(state.days)})</div>
+        <div class="card stat"><b>🔥 ${P.streak(state.days)}</b>jour${P.streak(state.days) > 1 ? 's' : ''} d’affilée (record : ${P.longestStreak(state.days)})</div>
       </div>
 
       <h2>Évolution</h2>
@@ -160,7 +160,7 @@
       </div>
 
       <h2>Bilan de départ</h2>
-      <div class="row">${subj.tree.filter(d => P.inScope(state, d.notions).length).map(d => `<a class="btn" href="#/diagnostic/${d.id}">🧭 ${d.title} ${P.diagDone(state, d) ? '✓' : ''}</a>`).join('')}</div>
+      <div class="row">${P.domainsInScope(state, subj).map(d => `<a class="btn" href="#/diagnostic/${d.id}">🧭 ${d.title} ${P.diagDone(state, d) ? '✓' : ''}</a>`).join('')}</div>
 
       <h2>Données</h2>
       <div class="card">

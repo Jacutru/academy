@@ -30,8 +30,7 @@
   const chronoBtn = (cls = 'btn primary big', label = '⚡ Chrono 60 s') => (M.engine.chronoNotions().length ? `<a class="${cls}" href="#/chrono">${label}</a>` : '');
 
   function nextStepHtml(step, state) {
-    // Parts of the bilan: domains with notions in the pupil's target (a domain may have none, e.g. all 5e).
-    const name = UI.esc(state.name), subj = UI.subject(), tree = subj.tree.filter(d => P.inScope(state, d.notions).length);
+    const name = UI.esc(state.name), subj = UI.subject(), tree = P.domainsInScope(state, subj);
     switch (step.kind) {
       case 'diag': {
         const done = tree.filter(d => P.diagDone(state, d)).length;
@@ -56,12 +55,13 @@
   }
 
   UI.route('', () => {
-    const state = M.store.read();
+    // Answers, badges and domains of the current subject; the streak is shared.
+    const state = M.store.read(), subj = UI.subject();
     const step = M.engine.nextStep(state);
     const streak = P.streak(state.days);
-    const badges = P.badges(state);
+    const badges = P.badgesOf(state, subj);
     const earned = badges.filter(b => b.earned);
-    const answered = state.log.length;
+    const answered = P.logOf(state, subj).length;
     UI.render(`
       <section class="card hero">${nextStepHtml(step, state)}<p style="margin-top:14px"><small>🎯 Objectif : ${UI.esc(UI.targetLabel(state))} · <a href="#/bilan">changer</a></small></p></section>
       <div class="grid grid-3" style="margin-top:16px">
@@ -71,7 +71,7 @@
       </div>
       <h2>Ta progression</h2>
       <div class="grid grid-3">
-        ${UI.subject().tree.map(d => {
+        ${P.domainsInScope(state, subj).map(d => {
           const p = P.domainProgress(state, d);
           return `<a class="card domain-card" href="#/sommaire" style="text-decoration:none;color:inherit">
             <h3><span>${d.icon} ${d.title}</span><span class="muted">${p.pct} %</span></h3>${UI.barHtml(p.pct)}

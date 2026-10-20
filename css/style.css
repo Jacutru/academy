@@ -196,6 +196,7 @@ svg.fig { display: block; max-width: 100%; height: auto; margin: 8px auto; overf
 .s-accent-line { stroke: var(--accent); stroke-width: 2.5; fill: none; }
 .s-dot { fill: var(--text); }
 .s-grid { stroke: var(--grid); stroke-width: 1; }
+.s-hatch { stroke: var(--text); stroke-width: 1; opacity: .45; }
 .s-axis { stroke: var(--axis); stroke-width: 3; }
 
 /* ---------- Exercise ---------- */
